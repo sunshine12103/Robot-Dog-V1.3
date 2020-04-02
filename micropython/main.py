@@ -49,12 +49,12 @@ class SpotServo:
 
 
 pca9685.freq(SpotServo.freq_hz)
-pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(99))
-pca9685.duty(2, SpotServo.get_12_bit_duty_cycle_for_angle(180))
+pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(90))
+pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(90))
 
 # servo 500-2500ms
-sweep_min_us = 1000  # 500  is 102   1000 is 240
-sweep_max_us = 2000  # 2500 is 512   2000 is 409
+min_sweep_deg = 85
+max_sweep_deg = 95
 going_up = True
 next_loop_millis = 0
 
@@ -67,15 +67,14 @@ while True:
         position_deg -= 1
         pass
 
-    pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(position_deg))
-    # lcd.clear()
+    pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(position_deg))
     lcd.move_to(0, 0)
     lcd.putstr("Loops:{:10}12-bit:{:9}".format(position_deg, position_deg))
 
-    if position_deg > sweep_max_us:
+    if position_deg >= max_sweep_deg:
         going_up = False
-    elif position_deg < sweep_min_us:
+    elif position_deg <= min_sweep_deg:
         going_up = True
     while millis() < next_loop_millis:
         pass
-    next_loop_millis = millis() + 200
+    next_loop_millis = millis() + 100
