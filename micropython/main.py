@@ -50,9 +50,8 @@ class SpotServo:
 
 pca9685.freq(SpotServo.freq_hz)
 pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(90))
-pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(90))
+pca9685.duty(2, SpotServo.get_12_bit_duty_cycle_for_angle(90))
 
-# servo 500-2500ms
 min_sweep_deg = 85
 max_sweep_deg = 95
 going_up = True
@@ -67,7 +66,8 @@ while True:
         position_deg -= 1
         pass
 
-    pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(position_deg))
+    # add 1.8mm to the shoulder that had 3mm taken off of it
+    pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(position_deg))
     lcd.move_to(0, 0)
     lcd.putstr("Loops:{:10}12-bit:{:9}".format(position_deg, position_deg))
 
