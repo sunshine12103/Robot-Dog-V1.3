@@ -66,7 +66,6 @@ while True:
         position_deg -= 1
         pass
 
-    # add 1.8mm to the shoulder that had 3mm taken off of it
     pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(position_deg))
     lcd.move_to(0, 0)
     lcd.putstr("Loops:{:10}12-bit:{:9}".format(position_deg, position_deg))
