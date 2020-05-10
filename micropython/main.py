@@ -23,15 +23,21 @@ class SpotServo:
     deg_max_cmd = 180.0
 
     us_per_180_degs = us_max_cmd - us_min_cmd
-    us_per_degree = us_per_180_degs / 180.0
+    us_per_deg = us_per_180_degs / 180.0
 
     freq_hz = 50.0
     period_us = (1.0 / freq_hz) * 1e6
 
-    def __init__(self, min_us, center_us, max_us):
-        self.min_us = min_us
-        self.center_us = center_us
-        self.max_us = max_us
+    def __init__(self, pwm_channel: int, min_angle_deg: float, center_angle_deg: float,
+                 max_angle_deg: float, is_inverted: bool):
+        # All angles passed in here should be raw angles so:
+        #     The max angle is not offset by the mid angle
+        #     The max angle does not consider inverted
+        self.pwm_channel = pwm_channel
+        self.min_angle_deg = min_angle_deg
+        self.center_angle_deg = center_angle_deg
+        self.max_angle_deg = max_angle_deg
+        self.is_inverted = is_inverted
 
     @staticmethod
     def get_12_bit_duty_cycle_for_us(position_us):
@@ -44,29 +50,60 @@ class SpotServo:
     def get_12_bit_duty_cycle_for_angle(angle_deg):
         if angle_deg < SpotServo.deg_min_cmd or angle_deg > SpotServo.deg_max_cmd:
             raise ValueError
-        target_us = SpotServo.us_min_cmd + (float(angle_deg) * SpotServo.us_per_degree)
+        target_us = SpotServo.us_min_cmd + (float(angle_deg) * SpotServo.us_per_deg)
         return SpotServo.get_12_bit_duty_cycle_for_us(target_us)
+
+    def command_deg(self, angle_deg):
+        # zero here will be legs straight down
+        angle_deg_with_inversion_relative_to_middle = angle_deg
+        if self.is_inverted:
+            angle_deg_with_inversion_relative_to_middle = -angle_deg
+        angle_deg_raw = self.center_angle_deg + angle_deg_with_inversion_relative_to_middle
+        if (angle_deg_raw < self.min_angle_deg) or (angle_deg_raw > self.max_angle_deg):
+            raise ValueError
+        pca9685.duty(self.pwm_channel, SpotServo.get_12_bit_duty_cycle_for_angle(angle_deg_raw))
 
 
 pca9685.freq(SpotServo.freq_hz)
-pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(90))
-pca9685.duty(2, SpotServo.get_12_bit_duty_cycle_for_angle(90))
+# right front calibration
+# pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(82))  # positive is external rotation
+# pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(115))  # positive is forward
+# pca9685.duty(2, SpotServo.get_12_bit_duty_cycle_for_angle(32))  # positive is forward
+# left front calibration
+# pca9685.duty(4, SpotServo.get_12_bit_duty_cycle_for_angle(97))   # positive is internal rotation
+# pca9685.duty(5, SpotServo.get_12_bit_duty_cycle_for_angle(87))  # positive is back
+# pca9685.duty(6, SpotServo.get_12_bit_duty_cycle_for_angle(140))  # positive is back
 
-min_sweep_deg = 85
-max_sweep_deg = 95
+right_front_shoulder = SpotServo(0, 0, 82, 180, False)
+right_front_elbow = SpotServo(1, 0, 115, 180, False)
+right_front_wrist = SpotServo(2, 0, 32, 180, False)
+left_front_shoulder = SpotServo(4, 0, 97, 180, True)
+left_front_elbow = SpotServo(5, 0, 87, 180, True)
+left_front_wrist = SpotServo(6, 0, 140, 180, True)
+
+left_front_shoulder.command_deg(0)
+right_front_shoulder.command_deg(0)
+
+right_front_elbow.command_deg(-50)
+left_front_elbow.command_deg(-50)
+
+left_front_wrist.command_deg(110)
+right_front_wrist.command_deg(110)
+
+min_sweep_deg = -50
+max_sweep_deg = -30
 going_up = True
 next_loop_millis = 0
 
-position_deg = 90
+position_deg = min_sweep_deg
 while True:
     if going_up:
-        position_deg += 1
+        position_deg += 0.5
         pass
     else:
-        position_deg -= 1
+        position_deg -= 0.5
         pass
 
-    pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(position_deg))
     lcd.move_to(0, 0)
     lcd.putstr("Loops:{:10}12-bit:{:9}".format(position_deg, position_deg))
 
@@ -76,4 +113,6 @@ while True:
         going_up = True
     while millis() < next_loop_millis:
         pass
-    next_loop_millis = millis() + 100
+    right_front_elbow.command_deg(position_deg)
+    left_front_elbow.command_deg(position_deg)
+    next_loop_millis = millis() + 50
