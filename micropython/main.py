@@ -72,7 +72,7 @@ def setup():
     return rtc, lcd
 
 
-def main():
+def main(rtc, lcd):
     # right front calibration
     # pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(82))  # positive is external rotation
     # pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(115))  # positive is forward
@@ -81,42 +81,41 @@ def main():
     # pca9685.duty(4, SpotServo.get_12_bit_duty_cycle_for_angle(97))   # positive is internal rotation
     # pca9685.duty(5, SpotServo.get_12_bit_duty_cycle_for_angle(87))  # positive is back
     # pca9685.duty(6, SpotServo.get_12_bit_duty_cycle_for_angle(140))  # positive is back
-    rtc, lcd = setup()
 
-    right_front_shoulder = SpotServo(0, 0, 82, 180, False)
-    right_front_elbow = SpotServo(1, 0, 115, 180, False)
-    right_front_wrist = SpotServo(2, 0, 32, 180, False)
-    left_front_shoulder = SpotServo(4, 0, 97, 180, True)
-    left_front_elbow = SpotServo(5, 0, 87, 180, True)
-    left_front_wrist = SpotServo(6, 0, 140, 180, True)
+    # pose: shoulder elbow wrist
+    # sphinx: 0 -50 110
+    # down_chicken: 40 -90 140
 
-    left_front_shoulder.command_deg(0)
-    right_front_shoulder.command_deg(0)
+    right_front_shoulder.command_deg(40)
+    left_front_shoulder.command_deg(40)
 
-    right_front_elbow.command_deg(-50)
-    left_front_elbow.command_deg(-50)
+    right_front_elbow.command_deg(-90)  # -60 is arm out flat, start here then go to -90
+    left_front_elbow.command_deg(-90)
 
-    left_front_wrist.command_deg(110)
-    right_front_wrist.command_deg(110)
+    right_front_wrist.command_deg(140)
+    left_front_wrist.command_deg(140)
 
-    min_sweep_deg = -50
-    max_sweep_deg = -30
-    going_up = True
+    min_sweep_deg = 0
+    max_sweep_deg = 40
+    position_deg = max_sweep_deg
+
+    going_up = False
     next_loop_us = 0
-
+    # put methods on stack to prevent lookups
     ticks_us = utime.ticks_us
-    position_deg = min_sweep_deg
+    rf_cmd = right_front_shoulder.command_deg
+    lf_cmd = left_front_shoulder.command_deg
     loop_rate_us = SpotServo.period_us - 575  # fudge factor here to match loop with PWM
     while True:
         if going_up:
-            position_deg += 0.5
+            position_deg += 0.1
             pass
         else:
-            position_deg -= 0.5
+            position_deg -= 0.1
             pass
 
-        # lcd.move_to(0, 0)
-        # lcd.putstr("Loops:{:10}12-bit:{:9}".format(position_deg, position_deg))
+        lcd.move_to(0, 0)
+        lcd.putstr("Loops:{:10}12-bit:{:9}".format(position_deg, position_deg))
 
         if position_deg >= max_sweep_deg:
             going_up = False
@@ -124,10 +123,17 @@ def main():
             going_up = True
         while ticks_us() < next_loop_us:
             pass
-        right_front_elbow.command_deg(position_deg)
-        left_front_elbow.command_deg(position_deg)
+        rf_cmd(position_deg)
+        lf_cmd(position_deg)
         next_loop_us = ticks_us() + loop_rate_us
 
 
 if __name__ == '__main__':
-    main()
+    rtc, lcd = setup()
+    right_front_shoulder = SpotServo(0, 0, 82, 180, False)
+    right_front_elbow = SpotServo(1, 0, 115, 180, False)
+    right_front_wrist = SpotServo(2, 0, 32, 180, False)
+    left_front_shoulder = SpotServo(4, 0, 97, 180, True)
+    left_front_elbow = SpotServo(5, 0, 87, 180, True)
+    left_front_wrist = SpotServo(6, 0, 140, 180, True)
+    main(rtc, lcd)
