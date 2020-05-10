@@ -15,18 +15,18 @@ class PCA9685:
         return self.i2c.mem_read(1, self.address, address)[0]
 
     def reset(self):
-        self._write(0x00, 0x00) # Mode1
+        self._write(0x00, 0x00)  # Mode1
 
     def freq(self, freq=None):
         if freq is None:
             return int(25000000.0 / 4096 / (self._read(0xfe) - 0.5))
         prescale = int(25000000.0 / 4096.0 / freq + 0.5)
-        old_mode = self._read(0x00) # Mode 1
-        self._write(0x00, (old_mode & 0x7F) | 0x10) # Mode 1, sleep
-        self._write(0xfe, prescale) # Prescale
-        self._write(0x00, old_mode) # Mode 1
+        old_mode = self._read(0x00)  # Mode 1
+        self._write(0x00, (old_mode & 0x7F) | 0x10)  # Mode 1, sleep
+        self._write(0xfe, prescale)  # Prescale
+        self._write(0x00, old_mode)  # Mode 1
         time.sleep_us(5)
-        self._write(0x00, old_mode | 0xa1) # Mode 1, autoincrement on
+        self._write(0x00, old_mode | 0xa1)  # Mode 1, autoincrement on
 
     def pwm(self, index, on=None, off=None):
         if on is None or off is None:

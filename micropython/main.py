@@ -1,19 +1,7 @@
-from pyb import I2C, delay, millis, RTC, Pin
+import utime
+from pyb import I2C, RTC, Pin
 from pyb_i2c_lcd import I2cLcd
 from pca9685 import PCA9685
-
-LCD_ADDR = 0x3F
-PWM_ADDR = 0x40
-MPU_ADDR = 0x68
-i2c = I2C(1, I2C.MASTER)
-lcd = I2cLcd(i2c, LCD_ADDR, 2, 16)
-
-pwm_not_enabled_pin = Pin("Y8", Pin.OUT_PP)
-pwm_not_enabled_pin.low()
-
-pca9685 = PCA9685(i2c)
-rtc = RTC()
-rtc.datetime((2020, 3, 8, 7, 21, 32, 0, 0))
 
 
 class SpotServo:
@@ -27,6 +15,8 @@ class SpotServo:
 
     freq_hz = 50.0
     period_us = (1.0 / freq_hz) * 1e6
+
+    pca9685 = None
 
     def __init__(self, pwm_channel: int, min_angle_deg: float, center_angle_deg: float,
                  max_angle_deg: float, is_inverted: bool):
@@ -61,58 +51,83 @@ class SpotServo:
         angle_deg_raw = self.center_angle_deg + angle_deg_with_inversion_relative_to_middle
         if (angle_deg_raw < self.min_angle_deg) or (angle_deg_raw > self.max_angle_deg):
             raise ValueError
-        pca9685.duty(self.pwm_channel, SpotServo.get_12_bit_duty_cycle_for_angle(angle_deg_raw))
+        self.pca9685.duty(self.pwm_channel, SpotServo.get_12_bit_duty_cycle_for_angle(angle_deg_raw))
 
 
-pca9685.freq(SpotServo.freq_hz)
-# right front calibration
-# pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(82))  # positive is external rotation
-# pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(115))  # positive is forward
-# pca9685.duty(2, SpotServo.get_12_bit_duty_cycle_for_angle(32))  # positive is forward
-# left front calibration
-# pca9685.duty(4, SpotServo.get_12_bit_duty_cycle_for_angle(97))   # positive is internal rotation
-# pca9685.duty(5, SpotServo.get_12_bit_duty_cycle_for_angle(87))  # positive is back
-# pca9685.duty(6, SpotServo.get_12_bit_duty_cycle_for_angle(140))  # positive is back
+def setup():
+    LCD_ADDR = 0x3F
+    PWM_ADDR = 0x40
+    # MPU_ADDR = 0x68
+    i2c = I2C(1, I2C.MASTER)
+    lcd = I2cLcd(i2c, LCD_ADDR, 2, 16)
 
-right_front_shoulder = SpotServo(0, 0, 82, 180, False)
-right_front_elbow = SpotServo(1, 0, 115, 180, False)
-right_front_wrist = SpotServo(2, 0, 32, 180, False)
-left_front_shoulder = SpotServo(4, 0, 97, 180, True)
-left_front_elbow = SpotServo(5, 0, 87, 180, True)
-left_front_wrist = SpotServo(6, 0, 140, 180, True)
+    pwm_not_enabled_pin = Pin("Y8", Pin.OUT_PP)
+    pwm_not_enabled_pin.low()
 
-left_front_shoulder.command_deg(0)
-right_front_shoulder.command_deg(0)
+    SpotServo.pca9685 = PCA9685(i2c, PWM_ADDR)
+    SpotServo.pca9685.freq(SpotServo.freq_hz)
 
-right_front_elbow.command_deg(-50)
-left_front_elbow.command_deg(-50)
+    rtc = RTC()
+    rtc.datetime((2020, 3, 8, 7, 21, 32, 0, 0))
+    return rtc, lcd
 
-left_front_wrist.command_deg(110)
-right_front_wrist.command_deg(110)
 
-min_sweep_deg = -50
-max_sweep_deg = -30
-going_up = True
-next_loop_millis = 0
+def main():
+    # right front calibration
+    # pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(82))  # positive is external rotation
+    # pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(115))  # positive is forward
+    # pca9685.duty(2, SpotServo.get_12_bit_duty_cycle_for_angle(32))  # positive is forward
+    # left front calibration
+    # pca9685.duty(4, SpotServo.get_12_bit_duty_cycle_for_angle(97))   # positive is internal rotation
+    # pca9685.duty(5, SpotServo.get_12_bit_duty_cycle_for_angle(87))  # positive is back
+    # pca9685.duty(6, SpotServo.get_12_bit_duty_cycle_for_angle(140))  # positive is back
+    rtc, lcd = setup()
 
-position_deg = min_sweep_deg
-while True:
-    if going_up:
-        position_deg += 0.5
-        pass
-    else:
-        position_deg -= 0.5
-        pass
+    right_front_shoulder = SpotServo(0, 0, 82, 180, False)
+    right_front_elbow = SpotServo(1, 0, 115, 180, False)
+    right_front_wrist = SpotServo(2, 0, 32, 180, False)
+    left_front_shoulder = SpotServo(4, 0, 97, 180, True)
+    left_front_elbow = SpotServo(5, 0, 87, 180, True)
+    left_front_wrist = SpotServo(6, 0, 140, 180, True)
 
-    lcd.move_to(0, 0)
-    lcd.putstr("Loops:{:10}12-bit:{:9}".format(position_deg, position_deg))
+    left_front_shoulder.command_deg(0)
+    right_front_shoulder.command_deg(0)
 
-    if position_deg >= max_sweep_deg:
-        going_up = False
-    elif position_deg <= min_sweep_deg:
-        going_up = True
-    while millis() < next_loop_millis:
-        pass
-    right_front_elbow.command_deg(position_deg)
-    left_front_elbow.command_deg(position_deg)
-    next_loop_millis = millis() + 50
+    right_front_elbow.command_deg(-50)
+    left_front_elbow.command_deg(-50)
+
+    left_front_wrist.command_deg(110)
+    right_front_wrist.command_deg(110)
+
+    min_sweep_deg = -50
+    max_sweep_deg = -30
+    going_up = True
+    next_loop_us = 0
+
+    ticks_us = utime.ticks_us
+    position_deg = min_sweep_deg
+    loop_rate_us = SpotServo.period_us - 575  # fudge factor here to match loop with PWM
+    while True:
+        if going_up:
+            position_deg += 0.5
+            pass
+        else:
+            position_deg -= 0.5
+            pass
+
+        # lcd.move_to(0, 0)
+        # lcd.putstr("Loops:{:10}12-bit:{:9}".format(position_deg, position_deg))
+
+        if position_deg >= max_sweep_deg:
+            going_up = False
+        elif position_deg <= min_sweep_deg:
+            going_up = True
+        while ticks_us() < next_loop_us:
+            pass
+        right_front_elbow.command_deg(position_deg)
+        left_front_elbow.command_deg(position_deg)
+        next_loop_us = ticks_us() + loop_rate_us
+
+
+if __name__ == '__main__':
+    main()

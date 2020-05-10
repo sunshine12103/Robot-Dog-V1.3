@@ -22,10 +22,10 @@ class I2cLcd(LcdApi):
         self.i2c = i2c
         self.i2c_addr = i2c_addr
         self.i2c.send(0, self.i2c_addr)  # todo: add retries
-        delay(20)   # Allow LCD time to powerup
+        delay(20)  # Allow LCD time to powerup
         # Send reset 3 times
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
-        delay(5)    # need to delay at least 4.1 msec
+        delay(5)  # need to delay at least 4.1 msec
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
         delay(1)
         self.hal_write_init_nibble(self.LCD_FUNCTION_RESET)
