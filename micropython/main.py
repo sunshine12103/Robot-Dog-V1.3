@@ -73,11 +73,11 @@ def setup():
 
 
 def main(rtc, lcd):
-    # right front calibration
+    # front right calibration
     # pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(82))  # positive is external rotation
     # pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(115))  # positive is forward
     # pca9685.duty(2, SpotServo.get_12_bit_duty_cycle_for_angle(32))  # positive is forward
-    # left front calibration
+    # front left calibration
     # pca9685.duty(4, SpotServo.get_12_bit_duty_cycle_for_angle(97))   # positive is internal rotation
     # pca9685.duty(5, SpotServo.get_12_bit_duty_cycle_for_angle(87))  # positive is back
     # pca9685.duty(6, SpotServo.get_12_bit_duty_cycle_for_angle(140))  # positive is back
@@ -86,14 +86,14 @@ def main(rtc, lcd):
     # sphinx: 0 -50 110
     # down_chicken: 40 -90 140
 
-    right_front_shoulder.command_deg(40)
-    left_front_shoulder.command_deg(40)
+    front_right_shoulder.command_deg(40)
+    front_left_shoulder.command_deg(40)
 
-    right_front_elbow.command_deg(-90)  # -60 is arm out flat, start here then go to -90
-    left_front_elbow.command_deg(-90)
+    front_right_leg.command_deg(-60)  # -60 is arm out flat, start here then go to -90
+    front_left_leg.command_deg(-60)
 
-    right_front_wrist.command_deg(140)
-    left_front_wrist.command_deg(140)
+    front_right_foot.command_deg(140)
+    front_left_foot.command_deg(140)
 
     min_sweep_deg = 0
     max_sweep_deg = 40
@@ -103,8 +103,8 @@ def main(rtc, lcd):
     next_loop_us = 0
     # put methods on stack to prevent lookups
     ticks_us = utime.ticks_us
-    rf_cmd = right_front_shoulder.command_deg
-    lf_cmd = left_front_shoulder.command_deg
+    fr_cmd = front_right_shoulder.command_deg
+    fl_cmd = front_left_shoulder.command_deg
     loop_rate_us = SpotServo.period_us - 575  # fudge factor here to match loop with PWM
     while True:
         if going_up:
@@ -123,17 +123,17 @@ def main(rtc, lcd):
             going_up = True
         while ticks_us() < next_loop_us:
             pass
-        rf_cmd(position_deg)
-        lf_cmd(position_deg)
+        # fr_cmd(position_deg)
+        # fl_cmd(position_deg)
         next_loop_us = ticks_us() + loop_rate_us
 
 
 if __name__ == '__main__':
     rtc, lcd = setup()
-    right_front_shoulder = SpotServo(0, 0, 82, 180, False)
-    right_front_elbow = SpotServo(1, 0, 115, 180, False)
-    right_front_wrist = SpotServo(2, 0, 32, 180, False)
-    left_front_shoulder = SpotServo(4, 0, 97, 180, True)
-    left_front_elbow = SpotServo(5, 0, 87, 180, True)
-    left_front_wrist = SpotServo(6, 0, 140, 180, True)
+    front_right_shoulder = SpotServo(0, 0, 82, 180, False)
+    front_right_leg = SpotServo(1, 0, 115, 180, False)
+    front_right_foot = SpotServo(2, 0, 32, 180, False)
+    front_left_shoulder = SpotServo(4, 0, 97, 180, True)
+    front_left_leg = SpotServo(5, 0, 87, 180, True)
+    front_left_foot = SpotServo(6, 0, 140, 180, True)
     main(rtc, lcd)
