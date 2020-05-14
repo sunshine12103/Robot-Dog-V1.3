@@ -1,8 +1,11 @@
 import utime
-import struct
 from pyb import I2C, RTC, Pin, UART
 from pyb_i2c_lcd import I2cLcd
+
 from pca9685 import PCA9685
+from profiler import Profiler
+from rc import get_rc_command
+from state import StateMachine
 
 
 class SpotServo:
@@ -91,80 +94,52 @@ def main(rtc, lcd, sbus_uart, debug_uart):
     # sphinx: 0 -50 110
     # down_chicken: 40 -90 140
 
-    front_right_shoulder.command_deg(40)
-    front_left_shoulder.command_deg(40)
+    profiler = Profiler(None, None, None, None, None, None, None, None, None, None, None, None)
+    state_machine = StateMachine()
 
-    front_right_leg.command_deg(-60)  # -60 is arm out flat, start here then go to -90
-    front_left_leg.command_deg(-60)
-
-    front_right_foot.command_deg(140)
-    front_left_foot.command_deg(140)
-
-    min_sweep_deg = 0
-    max_sweep_deg = 40
-    position_deg = max_sweep_deg
-
-    going_up = False
     next_loop_us = 0
     # put methods on stack to prevent lookups
     ticks_us = utime.ticks_us
-    fr_cmd = front_right_shoulder.command_deg
-    fl_cmd = front_left_shoulder.command_deg
+    frs_cmd = front_right_shoulder.command_deg
+    fls_cmd = front_left_shoulder.command_deg
+    frl_cmd = front_right_leg.command_deg
+    fll_cmd = front_left_leg.command_deg
+    frf_cmd = front_right_foot.command_deg
+    flf_cmd = front_left_foot.command_deg
     loop_rate_us = SpotServo.period_us - 575  # fudge factor here to match loop with PWM
     while True:
-        if going_up:
-            position_deg += 0.1
-            pass
-        else:
-            position_deg -= 0.1
-            pass
+        profiler.tick()
+        pos_cmds = profiler.get_position_commands()
 
         lcd.move_to(0, 0)
-        lcd.putstr("Loops:{:10}12-bit:{:9}".format(position_deg, position_deg))
+        lcd.putstr("Hello")
+        rc_command = get_rc_command(sbus_uart)
+        state_machine.update(profiler, rc_command, next_loop_us)
 
-        if position_deg >= max_sweep_deg:
-            going_up = False
-        elif position_deg <= min_sweep_deg:
-            going_up = True
         while ticks_us() < next_loop_us:
-            pass
-        # fr_cmd(position_deg)
-        # fl_cmd(position_deg)
+            pass  # wait for next loop
+        if pos_cmds[0] is not None:
+            frs_cmd(pos_cmds[0])
+        if pos_cmds[1] is not None:
+            fls_cmd(pos_cmds[1])
+        if pos_cmds[2] is not None:
+            frl_cmd(pos_cmds[2])
+        if pos_cmds[3] is not None:
+            fll_cmd(pos_cmds[3])
+        if pos_cmds[4] is not None:
+            frf_cmd(pos_cmds[4])
+        if pos_cmds[5] is not None:
+            flf_cmd(pos_cmds[5])
+
+        debug_uart.write("\x02{}\x03\r\n".format("\t".join([str(x) for x in pos_cmds])))
+        # if rc_command is not None:
+        #     debug_uart.write("\x02{}\x03\r\n".format("\t".join([str(x) for x in rc_command])))
+        # debug_uart.write("{}\t{}\t\r\n".format(state_machine.state, len(profiler.position_target_queue)))
         next_loop_us = ticks_us() + loop_rate_us
 
 
 if __name__ == '__main__':
     rtc, lcd, sbus_uart, debug_uart = setup()
-
-    sbus_buffer = bytearray(50)
-    while True:
-        wait = utime.ticks_us() + 0.1e6
-        while utime.ticks_us() < wait:
-            pass
-        sbus_uart.readinto(sbus_buffer)
-
-        start_byte_index = None
-        for sbus_index in range(len(sbus_buffer) - 24):
-            if sbus_buffer[sbus_index] == 0x0F and sbus_buffer[sbus_index + 24] == 0x00:
-                start_byte_index = sbus_index
-                break
-
-        if start_byte_index is None:
-            debug_uart.write("BAD\r\n")
-        else:
-            sbus_frame = sbus_buffer[start_byte_index:start_byte_index + 25]
-            sbus_as_int = int.from_bytes(sbus_frame, "little")
-
-            channels = []
-            for channel_index in range(16):
-                shift = (8 + (channel_index * 11))
-                channel_value = (sbus_as_int & (0x7FF << shift)) >> shift
-                channels.append(channel_value)
-            for bit_index in range(4):  # digital channels 17, 18, frame lost flag, failsafe flag
-                channels.append(bool((sbus_frame[-2] & (0x1 << bit_index)) >> bit_index))
-
-            debug_uart.write("{}\r\n".format("\t".join([str(x) for x in sbus_frame])))
-            debug_uart.write("{}\r\n".format("\t".join([str(c) for c in channels])))
 
     front_right_shoulder = SpotServo(0, 0, 82, 180, False)
     front_right_leg = SpotServo(1, 0, 115, 180, False)
@@ -172,4 +147,5 @@ if __name__ == '__main__':
     front_left_shoulder = SpotServo(4, 0, 97, 180, True)
     front_left_leg = SpotServo(5, 0, 87, 180, True)
     front_left_foot = SpotServo(6, 0, 140, 180, True)
+
     main(rtc, lcd, sbus_uart, debug_uart)
