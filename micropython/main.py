@@ -1,5 +1,6 @@
 import utime
-from pyb import I2C, RTC, Pin
+import struct
+from pyb import I2C, RTC, Pin, UART
 from pyb_i2c_lcd import I2cLcd
 from pca9685 import PCA9685
 
@@ -69,10 +70,14 @@ def setup():
 
     rtc = RTC()
     rtc.datetime((2020, 3, 8, 7, 21, 32, 0, 0))
-    return rtc, lcd
+
+    sbus_uart = UART(2, 100000, bits=8, parity=0, stop=2, read_buf_len=50)
+    debug_uart = UART(3, 115200)
+
+    return rtc, lcd, sbus_uart, debug_uart
 
 
-def main(rtc, lcd):
+def main(rtc, lcd, sbus_uart, debug_uart):
     # front right calibration
     # pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(82))  # positive is external rotation
     # pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(115))  # positive is forward
@@ -129,11 +134,42 @@ def main(rtc, lcd):
 
 
 if __name__ == '__main__':
-    rtc, lcd = setup()
+    rtc, lcd, sbus_uart, debug_uart = setup()
+
+    sbus_buffer = bytearray(50)
+    while True:
+        wait = utime.ticks_us() + 0.1e6
+        while utime.ticks_us() < wait:
+            pass
+        sbus_uart.readinto(sbus_buffer)
+
+        start_byte_index = None
+        for sbus_index in range(len(sbus_buffer) - 24):
+            if sbus_buffer[sbus_index] == 0x0F and sbus_buffer[sbus_index + 24] == 0x00:
+                start_byte_index = sbus_index
+                break
+
+        if start_byte_index is None:
+            debug_uart.write("BAD\r\n")
+        else:
+            sbus_frame = sbus_buffer[start_byte_index:start_byte_index + 25]
+            sbus_as_int = int.from_bytes(sbus_frame, "little")
+
+            channels = []
+            for channel_index in range(16):
+                shift = (8 + (channel_index * 11))
+                channel_value = (sbus_as_int & (0x7FF << shift)) >> shift
+                channels.append(channel_value)
+            for bit_index in range(4):  # digital channels 17, 18, frame lost flag, failsafe flag
+                channels.append(bool((sbus_frame[-2] & (0x1 << bit_index)) >> bit_index))
+
+            debug_uart.write("{}\r\n".format("\t".join([str(x) for x in sbus_frame])))
+            debug_uart.write("{}\r\n".format("\t".join([str(c) for c in channels])))
+
     front_right_shoulder = SpotServo(0, 0, 82, 180, False)
     front_right_leg = SpotServo(1, 0, 115, 180, False)
     front_right_foot = SpotServo(2, 0, 32, 180, False)
     front_left_shoulder = SpotServo(4, 0, 97, 180, True)
     front_left_leg = SpotServo(5, 0, 87, 180, True)
     front_left_foot = SpotServo(6, 0, 140, 180, True)
-    main(rtc, lcd)
+    main(rtc, lcd, sbus_uart, debug_uart)
