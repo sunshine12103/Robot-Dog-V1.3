@@ -106,18 +106,19 @@ def main(rtc, lcd, sbus_uart, debug_uart):
     fll_cmd = front_left_leg.command_deg
     frf_cmd = front_right_foot.command_deg
     flf_cmd = front_left_foot.command_deg
-    loop_rate_us = SpotServo.period_us - 575  # fudge factor here to match loop with PWM
+    loop_rate_us = SpotServo.period_us - 360  # fudge factor here to match loop with ~50Hz PWM = 19.64ms
     while True:
         profiler.tick()
         pos_cmds = profiler.get_position_commands()
 
-        lcd.move_to(0, 0)
-        lcd.putstr("Hello")
+        # lcd.move_to(0, 0)
+        # lcd.putstr("Hello")
         rc_command = get_rc_command(sbus_uart)
         state_machine.update(profiler, rc_command, next_loop_us)
 
         while ticks_us() < next_loop_us:
             pass  # wait for next loop
+        next_loop_us = ticks_us() + loop_rate_us
         if pos_cmds[0] is not None:
             frs_cmd(pos_cmds[0])
         if pos_cmds[1] is not None:
@@ -135,7 +136,6 @@ def main(rtc, lcd, sbus_uart, debug_uart):
             [str(x) for x in pos_cmds + [state_machine.state, len(profiler.position_target_queue)]])))
         # if rc_command is not None:
         #     debug_uart.write("\x02{}\x03\r\n".format("\t".join([str(x) for x in rc_command])))
-        next_loop_us = ticks_us() + loop_rate_us
 
 
 if __name__ == '__main__':
