@@ -45,11 +45,11 @@ class StateMachine:
         if self.state == self.DOWN:
             if rc is not None:
                 if rc[7] > 500:
-                    profiler.add_position_target(  # chicken straight shoulder
-                        front_right_shoulder=40,
-                        front_left_shoulder=40,
-                        front_right_leg=-90,
-                        front_left_leg=-90,
+                    profiler.add_position_target(
+                        front_right_shoulder=0,
+                        front_left_shoulder=0,
+                        front_right_leg=-60,
+                        front_left_leg=-60,
                         front_right_foot=140,
                         front_left_foot=140
                     )
@@ -65,18 +65,18 @@ class StateMachine:
                     self.last_state_transition_us = next_loop_ms
 
         if self.state == self.MOVING_UP:
-            if len(profiler.position_target_queue) == 0:
+            if profiler.get_motion_complete():
                 self.state = self.UP
                 self.last_state_transition_us = next_loop_ms
 
         if self.state == self.UP:
             if rc is not None:
                 if rc[7] < 500:
-                    profiler.add_position_target(  # chicken straight shoulder
-                        front_right_shoulder=40,
-                        front_left_shoulder=40,
-                        front_right_leg=-90,
-                        front_left_leg=-90,
+                    profiler.add_position_target(
+                        front_right_shoulder=0,
+                        front_left_shoulder=0,
+                        front_right_leg=-60,
+                        front_left_leg=-60,
                         front_right_foot=140,
                         front_left_foot=140
                     )
@@ -92,6 +92,6 @@ class StateMachine:
                     self.last_state_transition_us = next_loop_ms
 
         if self.state == self.MOVING_DOWN:
-            if len(profiler.position_target_queue) == 0:
+            if profiler.get_motion_complete():
                 self.state = self.DOWN
                 self.last_state_transition_us = next_loop_ms

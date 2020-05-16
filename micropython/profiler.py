@@ -113,6 +113,9 @@ class Profiler:
                 break
         return all_in_position
 
+    def get_motion_complete(self):
+        return self.get_all_are_in_position() and (len(self.position_target_queue) == 0)
+
 
 class Axis:
     def __init__(self, target_deg):
@@ -120,10 +123,12 @@ class Axis:
         self.command_deg = target_deg
         self.in_position = True
 
-        self._velocity_deg_per_sec = 0
-        self._acceleration_deg_sec_sec = 10
-        self._max_velocity_deg_per_sec = (1.0 / (0.11 / 60.0)) / 2
         self._tick_s = 19.65E-3
+        self._velocity_deg_per_tick = 0
+        self._acceleration_deg_sec_sec = 20.0
+        self._acceleration_deg_sec_tick = self._acceleration_deg_sec_sec * self._tick_s
+        self._max_velocity_deg_per_sec = (1.0 / (0.11 / 60.0))
+        self._max_velocity_deg_per_tick = self._max_velocity_deg_per_sec * self._tick_s
 
     def tick(self):
         if (self.target_deg is not None) and (self.command_deg is None):
@@ -134,24 +139,33 @@ class Axis:
             self.command_deg = None
 
         if (self.target_deg is not None) and (self.command_deg is not None):  # only work on channel that are used
-            if abs(self.command_deg - self.target_deg) > 0:
+            remaining_distance = self.target_deg - self.command_deg
+            if abs(remaining_distance) > 0:  # only move if not in position
                 self.in_position = False
-                if self.command_deg < self.target_deg:
-                    # need to make a positive move
-                    if self._velocity_deg_per_sec < self._max_velocity_deg_per_sec:
-                        self._velocity_deg_per_sec += (self._acceleration_deg_sec_sec / (1.0 / self._tick_s))
+
+                deccel_dist = (self._velocity_deg_per_tick * self._velocity_deg_per_tick) / \
+                              (2 * self._acceleration_deg_sec_tick)
+                if abs(remaining_distance) < deccel_dist:
+                    if remaining_distance > 0:
+                        self._velocity_deg_per_tick -= self._acceleration_deg_sec_tick
+                    else:
+                        self._velocity_deg_per_tick += self._acceleration_deg_sec_tick
                 else:
-                    # need to make a negative move
-                    if self._velocity_deg_per_sec > -self._max_velocity_deg_per_sec:
-                        self._velocity_deg_per_sec -= (self._acceleration_deg_sec_sec / (1.0 / self._tick_s))
+                    if remaining_distance > 0:
+                        self._velocity_deg_per_tick += self._acceleration_deg_sec_tick
+                    else:
+                        self._velocity_deg_per_tick -= self._acceleration_deg_sec_tick
 
-                # only move if not in position
-                self.command_deg = int(self.command_deg + (self._velocity_deg_per_sec / (1.0 / self._tick_s)))
+                # limit max velocities
+                if self._velocity_deg_per_tick < -self._max_velocity_deg_per_tick:
+                    self._velocity_deg_per_tick = -self._max_velocity_deg_per_tick
+                if self._velocity_deg_per_tick > self._max_velocity_deg_per_tick:
+                    self._velocity_deg_per_tick = self._max_velocity_deg_per_tick
 
-                # todo: calculate remaining motion and use deceleration
+                self.command_deg = int(self.command_deg + self._velocity_deg_per_tick)
             else:
                 self.in_position = True
-                self._velocity_deg_per_sec = 0
+                self._velocity_deg_per_tick = 0
 
     def get_is_in_position(self):
         return self.in_position

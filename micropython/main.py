@@ -74,7 +74,7 @@ def setup():
     rtc = RTC()
     rtc.datetime((2020, 3, 8, 7, 21, 32, 0, 0))
 
-    sbus_uart = UART(2, 100000, bits=8, parity=0, stop=2, read_buf_len=50)
+    sbus_uart = UART(2, 100000, bits=8, parity=0, stop=2, read_buf_len=50, timeout=0)
     debug_uart = UART(3, 115200)
 
     return rtc, lcd, sbus_uart, debug_uart
@@ -131,10 +131,10 @@ def main(rtc, lcd, sbus_uart, debug_uart):
         if pos_cmds[5] is not None:
             flf_cmd(pos_cmds[5])
 
-        debug_uart.write("\x02{}\x03\r\n".format("\t".join([str(x) for x in pos_cmds])))
+        debug_uart.write("\x02{}\x03\r\n".format("\t".join(
+            [str(x) for x in pos_cmds + [state_machine.state, len(profiler.position_target_queue)]])))
         # if rc_command is not None:
         #     debug_uart.write("\x02{}\x03\r\n".format("\t".join([str(x) for x in rc_command])))
-        # debug_uart.write("{}\t{}\t\r\n".format(state_machine.state, len(profiler.position_target_queue)))
         next_loop_us = ticks_us() + loop_rate_us
 
 
