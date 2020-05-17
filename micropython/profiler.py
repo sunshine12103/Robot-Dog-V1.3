@@ -121,51 +121,52 @@ class Axis:
     def __init__(self, target_deg):
         self.target_deg = target_deg
         self.command_deg = target_deg
+        self.command_deg_float = self.command_deg
         self.in_position = True
 
-        self._tick_s = 19.65E-3
-        self._velocity_deg_per_tick = 0
-        self._acceleration_deg_sec_sec = 20.0
-        self._acceleration_deg_sec_tick = self._acceleration_deg_sec_sec * self._tick_s
-        self._max_velocity_deg_per_sec = (1.0 / (0.11 / 60.0))
-        self._max_velocity_deg_per_tick = self._max_velocity_deg_per_sec * self._tick_s
+        self._velocity = 0.0
+        self._velocity_max = 3.0
+        self._acceleration = 0.005
 
     def tick(self):
         if (self.target_deg is not None) and (self.command_deg is None):
             # this is the first time this servo is being used (i.e. target is no longer None)
             self.command_deg = self.target_deg
+            self.command_deg_float = self.target_deg
         elif self.target_deg is None:
             # this servo is not used yet
             self.command_deg = None
+            self.command_deg_float = None
 
         if (self.target_deg is not None) and (self.command_deg is not None):  # only work on channel that are used
-            remaining_distance = self.target_deg - self.command_deg
-            if abs(remaining_distance) > 0:  # only move if not in position
+            remaining_distance = int(self.target_deg - self.command_deg_float)
+
+            stop_distance = abs((self._velocity * self._velocity) / (2 * self._acceleration))
+
+            if remaining_distance > 0:
                 self.in_position = False
-
-                deccel_dist = (self._velocity_deg_per_tick * self._velocity_deg_per_tick) / \
-                              (2 * self._acceleration_deg_sec_tick)
-                if abs(remaining_distance) < deccel_dist:
-                    if remaining_distance > 0:
-                        self._velocity_deg_per_tick -= self._acceleration_deg_sec_tick
-                    else:
-                        self._velocity_deg_per_tick += self._acceleration_deg_sec_tick
-                else:
-                    if remaining_distance > 0:
-                        self._velocity_deg_per_tick += self._acceleration_deg_sec_tick
-                    else:
-                        self._velocity_deg_per_tick -= self._acceleration_deg_sec_tick
-
-                # limit max velocities
-                if self._velocity_deg_per_tick < -self._max_velocity_deg_per_tick:
-                    self._velocity_deg_per_tick = -self._max_velocity_deg_per_tick
-                if self._velocity_deg_per_tick > self._max_velocity_deg_per_tick:
-                    self._velocity_deg_per_tick = self._max_velocity_deg_per_tick
-
-                self.command_deg = int(self.command_deg + self._velocity_deg_per_tick)
+                if remaining_distance < stop_distance:  # need to slow down
+                    self._velocity -= self._acceleration
+                else:  # speed up towards target
+                    self._velocity += self._acceleration
+                if self._velocity > self._velocity_max:
+                    self._velocity = self._velocity_max
+                self.command_deg_float = self.command_deg_float + self._velocity
+            elif remaining_distance < 0:
+                self.in_position = False
+                if abs(remaining_distance) < stop_distance:  # need to slow down
+                    self._velocity += self._acceleration
+                else:  # speed up towards target
+                    self._velocity -= self._acceleration
+                if self._velocity < -self._velocity_max:
+                    self._velocity = -self._velocity_max
+                self.command_deg_float = self.command_deg_float + self._velocity
             else:
                 self.in_position = True
-                self._velocity_deg_per_tick = 0
+                self._velocity = 0.0
+                self.command_deg_float = self.target_deg
+
+            self.command_deg = int(self.command_deg_float)
 
     def get_is_in_position(self):
         return self.in_position

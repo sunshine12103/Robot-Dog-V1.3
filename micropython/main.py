@@ -133,7 +133,7 @@ def main(rtc, lcd, sbus_uart, debug_uart):
             flf_cmd(pos_cmds[5])
 
         debug_uart.write("\x02{}\x03\r\n".format("\t".join(
-            [str(x) for x in pos_cmds + [state_machine.state, len(profiler.position_target_queue)]])))
+            [str(x) for x in pos_cmds + [state_machine.state, len(profiler.position_target_queue), ticks_us()]])))
         # if rc_command is not None:
         #     debug_uart.write("\x02{}\x03\r\n".format("\t".join([str(x) for x in rc_command])))
 
