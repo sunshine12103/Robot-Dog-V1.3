@@ -111,8 +111,8 @@ def main(rtc, lcd, sbus_uart, debug_uart):
         profiler.tick()
         pos_cmds = profiler.get_position_commands()
 
-        # lcd.move_to(0, 0)
-        # lcd.putstr("Hello")
+        lcd.move_to(0, 0)
+        lcd.putstr("Hello {}".format(ticks_us()))
         rc_command = get_rc_command(sbus_uart)
         state_machine.update(profiler, rc_command, next_loop_us)
 
