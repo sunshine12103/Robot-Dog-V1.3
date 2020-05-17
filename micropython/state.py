@@ -1,3 +1,6 @@
+DEBUG = False
+
+
 class StateMachine:
     INIT = 0
     TURNING_SERVOS_ON = 1
@@ -14,10 +17,13 @@ class StateMachine:
     def update(self, profiler, rc, next_loop_ms):
 
         if self.state == self.INIT:
+            transition = False
             if rc is not None:
                 if rc[6] > 1500:
-                    self.state = self.TURNING_SERVOS_ON
-                    self.last_state_transition_us = next_loop_ms
+                    transition = True
+            if transition or DEBUG:
+                self.state = self.TURNING_SERVOS_ON
+                self.last_state_transition_us = next_loop_ms
 
         if self.state == self.TURNING_SERVOS_ON:
             if self.sub_state == 0:
@@ -43,26 +49,37 @@ class StateMachine:
                 self.last_state_transition_us = next_loop_ms
 
         if self.state == self.DOWN:
+            transition = False
             if rc is not None:
                 if rc[7] > 500:
-                    profiler.add_position_target(
-                        front_right_shoulder=0,
-                        front_left_shoulder=0,
-                        front_right_leg=-60,
-                        front_left_leg=-60,
-                        front_right_foot=140,
-                        front_left_foot=140
-                    )
-                    profiler.add_position_target(  # sphinx
-                        front_right_shoulder=0,
-                        front_left_shoulder=0,
-                        front_right_leg=-50,
-                        front_left_leg=-50,
-                        front_right_foot=110,
-                        front_left_foot=110
-                    )
-                    self.state = self.MOVING_UP
-                    self.last_state_transition_us = next_loop_ms
+                    transition = True
+            if transition or DEBUG:
+                profiler.add_position_target(
+                    front_right_shoulder=40,
+                    front_left_shoulder=40,
+                    front_right_leg=-60,
+                    front_left_leg=-60,
+                    front_right_foot=110,
+                    front_left_foot=110
+                )
+                profiler.add_position_target(
+                    front_right_shoulder=0,
+                    front_left_shoulder=0,
+                    front_right_leg=-60,
+                    front_left_leg=-60,
+                    front_right_foot=110,
+                    front_left_foot=110
+                )
+                profiler.add_position_target(  # sphinx
+                    front_right_shoulder=0,
+                    front_left_shoulder=0,
+                    front_right_leg=-50,
+                    front_left_leg=-50,
+                    front_right_foot=110,
+                    front_left_foot=110
+                )
+                self.state = self.MOVING_UP
+                self.last_state_transition_us = next_loop_ms
 
         if self.state == self.MOVING_UP:
             if profiler.get_motion_complete():
@@ -70,26 +87,37 @@ class StateMachine:
                 self.last_state_transition_us = next_loop_ms
 
         if self.state == self.UP:
+            transition = False
             if rc is not None:
                 if rc[7] < 500:
-                    profiler.add_position_target(
-                        front_right_shoulder=0,
-                        front_left_shoulder=0,
-                        front_right_leg=-60,
-                        front_left_leg=-60,
-                        front_right_foot=140,
-                        front_left_foot=140
-                    )
-                    profiler.add_position_target(
-                        front_right_shoulder=40,
-                        front_left_shoulder=40,
-                        front_right_leg=-60,
-                        front_left_leg=-60,
-                        front_right_foot=140,
-                        front_left_foot=140
-                    )
-                    self.state = self.MOVING_DOWN
-                    self.last_state_transition_us = next_loop_ms
+                    transition = True
+            if transition or DEBUG:
+                profiler.add_position_target(
+                    front_right_shoulder=0,
+                    front_left_shoulder=0,
+                    front_right_leg=-60,
+                    front_left_leg=-60,
+                    front_right_foot=110,
+                    front_left_foot=110
+                )
+                profiler.add_position_target(
+                    front_right_shoulder=40,
+                    front_left_shoulder=40,
+                    front_right_leg=-60,
+                    front_left_leg=-60,
+                    front_right_foot=110,
+                    front_left_foot=110
+                )
+                profiler.add_position_target(
+                    front_right_shoulder=40,
+                    front_left_shoulder=40,
+                    front_right_leg=-60,
+                    front_left_leg=-60,
+                    front_right_foot=140,
+                    front_left_foot=140
+                )
+                self.state = self.MOVING_DOWN
+                self.last_state_transition_us = next_loop_ms
 
         if self.state == self.MOVING_DOWN:
             if profiler.get_motion_complete():
