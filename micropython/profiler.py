@@ -125,8 +125,8 @@ class Axis:
         self.in_position = True
 
         self._velocity = 0.0
-        self._velocity_max = 3.0
-        self._acceleration = 0.005
+        self._velocity_max = 10.0
+        self._acceleration = 0.02
 
     def tick(self):
         if (self.target_deg is not None) and (self.command_deg is None):
