@@ -55,14 +55,6 @@ class StateMachine:
                     transition = True
             if transition or DEBUG:
                 profiler.add_position_target(
-                    front_right_shoulder=40,
-                    front_left_shoulder=40,
-                    front_right_leg=-60,
-                    front_left_leg=-60,
-                    front_right_foot=110,
-                    front_left_foot=110
-                )
-                profiler.add_position_target(
                     front_right_shoulder=0,
                     front_left_shoulder=0,
                     front_right_leg=-60,
@@ -95,14 +87,6 @@ class StateMachine:
                 profiler.add_position_target(
                     front_right_shoulder=0,
                     front_left_shoulder=0,
-                    front_right_leg=-60,
-                    front_left_leg=-60,
-                    front_right_foot=110,
-                    front_left_foot=110
-                )
-                profiler.add_position_target(
-                    front_right_shoulder=40,
-                    front_left_shoulder=40,
                     front_right_leg=-60,
                     front_left_leg=-60,
                     front_right_foot=110,
