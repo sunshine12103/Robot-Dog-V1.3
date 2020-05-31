@@ -97,9 +97,11 @@ def main(rtc, lcd, sbus_uart, debug_uart):
     profiler = Profiler(None, None, None, None, None, None, None, None, None, None, None, None)
     state_machine = StateMachine()
 
-    next_loop_us = 0
     # put methods on stack to prevent lookups
     ticks_us = utime.ticks_us
+    # noinspection PyUnresolvedReferences
+    ticks_diff = utime.ticks_diff
+    last_loop_us = ticks_us()
     frs_cmd = front_right_shoulder.command_deg
     fls_cmd = front_left_shoulder.command_deg
     frl_cmd = front_right_leg.command_deg
@@ -119,13 +121,13 @@ def main(rtc, lcd, sbus_uart, debug_uart):
         pos_cmds = profiler.get_position_commands()
 
         lcd.move_to(0, 0)
-        lcd.putstr("Hello {}".format(ticks_us()))
+        lcd.putstr("Hello {}".format(last_loop_us))
         rc_command = get_rc_command(sbus_uart)
-        state_machine.update(profiler, rc_command, next_loop_us)
+        state_machine.update(profiler, rc_command, last_loop_us)
 
-        while ticks_us() < next_loop_us:
-            pass  # wait for next loop
-        next_loop_us = ticks_us() + loop_rate_us
+        while ticks_diff(ticks_us(), last_loop_us) < loop_rate_us:
+            pass  # wait for this loop's time
+        last_loop_us = ticks_us()
         if pos_cmds[0] is not None:
             frs_cmd(pos_cmds[0])
         if pos_cmds[1] is not None:
@@ -152,10 +154,11 @@ def main(rtc, lcd, sbus_uart, debug_uart):
             rlf_cmd(pos_cmds[11])
 
         debug_uart.write("\x02{}\x03\r\n".format("\t".join(
-            [str(x) for x in [0x1] + pos_cmds + [state_machine.state, len(profiler.position_target_queue), ticks_us()]])))
+            [str(x) for x in [0x1] + pos_cmds + [
+                state_machine.state, len(profiler.position_target_queue), last_loop_us]])))
         if rc_command is not None:
             debug_uart.write("\x02{}\x03\r\n".format("\t".join(
-                [str(x) for x in [0x2] + rc_command])))
+                [str(x) for x in [0x2] + rc_command + [last_loop_us]])))
 
 
 if __name__ == '__main__':
