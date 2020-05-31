@@ -1,6 +1,15 @@
-import utime
 
 DEBUG = False
+
+try:
+    # noinspection PyUnresolvedReferences
+    import utime
+    # noinspection PyUnresolvedReferences
+    ticks_diff = utime.ticks_diff
+except ImportError:
+    def ticks_diff(ticks1, ticks2):
+        """ Overwrite MicroPython ticks diff function with one that will work on the PC target. """
+        return ticks1 - ticks2
 
 
 class StateMachine:
@@ -10,9 +19,6 @@ class StateMachine:
     DOWN = 4
     MOVING_UP = 5
     UP = 6
-
-    # noinspection PyUnresolvedReferences
-    ticks_diff = utime.ticks_diff
 
     def __init__(self):
         self.sub_state = 0
@@ -39,7 +45,7 @@ class StateMachine:
                     rear_left_shoulder=40,
                 )
                 self.sub_state = 1
-            elif (self.sub_state == 1) and (self.ticks_diff(last_loop_ms, self.last_state_transition_us) > 2e6):
+            elif (self.sub_state == 1) and (ticks_diff(last_loop_ms, self.last_state_transition_us) > 2e6):
                 profiler.add_position_target(
                     front_right_leg=-60,
                     front_left_leg=-60,
@@ -47,7 +53,7 @@ class StateMachine:
                     rear_left_leg=-60,
                 )
                 self.sub_state = 2
-            elif (self.sub_state == 2) and (self.ticks_diff(last_loop_ms, self.last_state_transition_us) > 4e6):
+            elif (self.sub_state == 2) and (ticks_diff(last_loop_ms, self.last_state_transition_us) > 4e6):
                 profiler.add_position_target(
                     front_right_foot=140,
                     front_left_foot=140,
@@ -55,7 +61,7 @@ class StateMachine:
                     rear_left_foot=140,
                 )
                 self.sub_state = 3
-            elif (self.sub_state == 3) and (self.ticks_diff(last_loop_ms, self.last_state_transition_us) > 6e6):
+            elif (self.sub_state == 3) and (ticks_diff(last_loop_ms, self.last_state_transition_us) > 6e6):
                 self.state = self.DOWN
                 self.last_state_transition_us = last_loop_ms
 
