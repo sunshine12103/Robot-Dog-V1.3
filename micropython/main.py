@@ -106,6 +106,13 @@ def main(rtc, lcd, sbus_uart, debug_uart):
     fll_cmd = front_left_leg.command_deg
     frf_cmd = front_right_foot.command_deg
     flf_cmd = front_left_foot.command_deg
+
+    rrs_cmd = rear_right_shoulder.command_deg
+    rls_cmd = rear_left_shoulder.command_deg
+    rrl_cmd = rear_right_leg.command_deg
+    rll_cmd = rear_left_leg.command_deg
+    rrf_cmd = rear_right_foot.command_deg
+    rlf_cmd = rear_left_foot.command_deg
     loop_rate_us = SpotServo.period_us - 360  # fudge factor here to match loop with ~50Hz PWM = 19.64ms
     while True:
         profiler.tick()
@@ -131,6 +138,18 @@ def main(rtc, lcd, sbus_uart, debug_uart):
             frf_cmd(pos_cmds[4])
         if pos_cmds[5] is not None:
             flf_cmd(pos_cmds[5])
+        if pos_cmds[6] is not None:
+            rrs_cmd(pos_cmds[6])
+        if pos_cmds[7] is not None:
+            rls_cmd(pos_cmds[7])
+        if pos_cmds[8] is not None:
+            rrl_cmd(pos_cmds[8])
+        if pos_cmds[9] is not None:
+            rll_cmd(pos_cmds[9])
+        if pos_cmds[10] is not None:
+            rrf_cmd(pos_cmds[10])
+        if pos_cmds[11] is not None:
+            rlf_cmd(pos_cmds[11])
 
         debug_uart.write("\x02{}\x03\r\n".format("\t".join(
             [str(x) for x in pos_cmds + [state_machine.state, len(profiler.position_target_queue), ticks_us()]])))
@@ -147,5 +166,12 @@ if __name__ == '__main__':
     front_left_shoulder = SpotServo(4, 0, 97, 180, True)
     front_left_leg = SpotServo(5, 0, 87, 180, True)
     front_left_foot = SpotServo(6, 0, 140, 180, True)
+
+    rear_right_shoulder = SpotServo(8, 0, 70, 180, False)
+    rear_right_leg = SpotServo(9, 0, 90, 180, False)
+    rear_right_foot = SpotServo(10, 0, 32, 180, False)
+    rear_left_shoulder = SpotServo(12, 0, 100, 180, True)
+    rear_left_leg = SpotServo(13, 0, 90, 180, True)
+    rear_left_foot = SpotServo(14, 0, 140, 180, True)
 
     main(rtc, lcd, sbus_uart, debug_uart)

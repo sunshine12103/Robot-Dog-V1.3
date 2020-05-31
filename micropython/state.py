@@ -30,18 +30,24 @@ class StateMachine:
                 profiler.add_position_target(
                     front_right_shoulder=40,
                     front_left_shoulder=40,
+                    rear_right_shoulder=40,
+                    rear_left_shoulder=40,
                 )
                 self.sub_state = 1
             elif (self.sub_state == 1) and ((next_loop_ms - self.last_state_transition_us) > 2e6):
                 profiler.add_position_target(
                     front_right_leg=-60,
                     front_left_leg=-60,
+                    rear_right_leg=-60,
+                    rear_left_leg=-60,
                 )
                 self.sub_state = 2
             elif (self.sub_state == 2) and ((next_loop_ms - self.last_state_transition_us) > 4e6):
                 profiler.add_position_target(
                     front_right_foot=140,
-                    front_left_foot=140
+                    front_left_foot=140,
+                    rear_right_foot=140,
+                    rear_left_foot=140,
                 )
                 self.sub_state = 3
             elif (self.sub_state == 3) and ((next_loop_ms - self.last_state_transition_us) > 6e6):
@@ -60,7 +66,13 @@ class StateMachine:
                     front_right_leg=-60,
                     front_left_leg=-60,
                     front_right_foot=110,
-                    front_left_foot=110
+                    front_left_foot=110,
+                    rear_right_shoulder=0,
+                    rear_left_shoulder=0,
+                    rear_right_leg=-60,
+                    rear_left_leg=-60,
+                    rear_right_foot=110,
+                    rear_left_foot=110,
                 )
                 profiler.add_position_target(  # sphinx
                     front_right_shoulder=0,
@@ -68,7 +80,13 @@ class StateMachine:
                     front_right_leg=-50,
                     front_left_leg=-50,
                     front_right_foot=110,
-                    front_left_foot=110
+                    front_left_foot=110,
+                    rear_right_shoulder=0,
+                    rear_left_shoulder=0,
+                    rear_right_leg=-50,
+                    rear_left_leg=-50,
+                    rear_right_foot=110,
+                    rear_left_foot=110,
                 )
                 self.state = self.MOVING_UP
                 self.last_state_transition_us = next_loop_ms
@@ -90,7 +108,13 @@ class StateMachine:
                     front_right_leg=-60,
                     front_left_leg=-60,
                     front_right_foot=110,
-                    front_left_foot=110
+                    front_left_foot=110,
+                    rear_right_shoulder=0,
+                    rear_left_shoulder=0,
+                    rear_right_leg=-60,
+                    rear_left_leg=-60,
+                    rear_right_foot=110,
+                    rear_left_foot=110,
                 )
                 profiler.add_position_target(
                     front_right_shoulder=40,
@@ -98,7 +122,13 @@ class StateMachine:
                     front_right_leg=-60,
                     front_left_leg=-60,
                     front_right_foot=140,
-                    front_left_foot=140
+                    front_left_foot=140,
+                    rear_right_shoulder=40,
+                    rear_left_shoulder=40,
+                    rear_right_leg=-60,
+                    rear_left_leg=-60,
+                    rear_right_foot=140,
+                    rear_left_foot=140,
                 )
                 self.state = self.MOVING_DOWN
                 self.last_state_transition_us = next_loop_ms
