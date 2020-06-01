@@ -51,16 +51,16 @@ class StateMachine:
                     transition = True
             if transition or DEBUG:
                 profiler.add_position_target(
-                    front_right_x=0, front_right_y=30, front_right_z=100,
-                    front_left_x=0, front_left_y=30, front_left_z=100,
-                    rear_right_x=0, rear_right_y=30, rear_right_z=100,
-                    rear_left_x=0, rear_left_y=30, rear_left_z=100,
+                    front_right_x=0, front_right_y=0, front_right_z=100,
+                    front_left_x=0, front_left_y=0, front_left_z=100,
+                    rear_right_x=0, rear_right_y=0, rear_right_z=100,
+                    rear_left_x=0, rear_left_y=0, rear_left_z=100,
                 )
                 profiler.add_position_target(  # sphinx
-                    front_right_x=0, front_right_y=30, front_right_z=200,
-                    front_left_x=0, front_left_y=30, front_left_z=200,
-                    rear_right_x=0, rear_right_y=30, rear_right_z=200,
-                    rear_left_x=0, rear_left_y=30, rear_left_z=200,
+                    front_right_x=0, front_right_y=0, front_right_z=200,
+                    front_left_x=0, front_left_y=0, front_left_z=200,
+                    rear_right_x=0, rear_right_y=0, rear_right_z=200,
+                    rear_left_x=0, rear_left_y=0, rear_left_z=200,
                 )
                 self.state = self.MOVING_UP
                 self.last_state_transition_us = last_loop_ms
@@ -87,17 +87,17 @@ class StateMachine:
                         if abs(z_command) < 5:
                             z_command = 0
                         profiler.add_position_target(  # sphinx
-                            front_right_x=x_command, front_right_y=y_command + 10, front_right_z=200 + z_command,
-                            front_left_x=x_command, front_left_y=y_command + 10, front_left_z=200 + z_command,
-                            rear_right_x=x_command, rear_right_y=y_command + 10, rear_right_z=200 + z_command,
-                            rear_left_x=x_command, rear_left_y=y_command + 10, rear_left_z=200 + z_command,
+                            front_right_x=x_command, front_right_y=y_command, front_right_z=200 + z_command,
+                            front_left_x=x_command, front_left_y=y_command, front_left_z=200 + z_command,
+                            rear_right_x=x_command, rear_right_y=y_command, rear_right_z=200 + z_command,
+                            rear_left_x=x_command, rear_left_y=y_command, rear_left_z=200 + z_command,
                         )
             if transition or DEBUG:
                 profiler.add_position_target(
-                    front_right_x=0, front_right_y=30, front_right_z=100,
-                    front_left_x=0, front_left_y=30, front_left_z=100,
-                    rear_right_x=0, rear_right_y=30, rear_right_z=100,
-                    rear_left_x=0, rear_left_y=30, rear_left_z=100,
+                    front_right_x=0, front_right_y=0, front_right_z=100,
+                    front_left_x=0, front_left_y=0, front_left_z=100,
+                    rear_right_x=0, rear_right_y=0, rear_right_z=100,
+                    rear_left_x=0, rear_left_y=0, rear_left_z=100,
                 )
                 profiler.add_position_target(
                     front_right_x=profiler.start_pose_x, front_right_y=profiler.start_pose_y, front_right_z=profiler.start_pose_z,

@@ -5,7 +5,7 @@ class Profiler:
     def __init__(self):
         self.start_pose_x = 60
         self.start_pose_y = 12
-        self.start_pose_z = 70
+        self.start_pose_z = 58
         self.front_right = Leg(self.start_pose_x, self.start_pose_y, self.start_pose_z)
         self.front_left = Leg(-self.start_pose_x, self.start_pose_y, self.start_pose_z, True)
         self.rear_right = Leg(self.start_pose_x, self.start_pose_y, self.start_pose_z)
@@ -146,7 +146,7 @@ class Leg:
             dist_remaining = self._move_dist_total - dist_traveled
 
             if dist_remaining < self._move_acceleration_dist:
-                if self._velocity > self._acceleration:
+                if self._velocity > (self._acceleration * 2):
                     self._velocity -= self._acceleration  # slow down
             elif dist_traveled < self._move_acceleration_dist:
                 if self._velocity < self._velocity_max:
