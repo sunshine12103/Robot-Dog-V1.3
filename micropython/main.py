@@ -82,19 +82,6 @@ def setup():
 
 
 def main(rtc, lcd, sbus_uart, debug_uart):
-    # front right calibration
-    # pca9685.duty(0, Servo.get_12_bit_duty_cycle_for_angle(82))  # positive is external rotation
-    # pca9685.duty(1, Servo.get_12_bit_duty_cycle_for_angle(115))  # positive is forward
-    # pca9685.duty(2, Servo.get_12_bit_duty_cycle_for_angle(32))  # positive is forward
-    # front left calibration
-    # pca9685.duty(4, Servo.get_12_bit_duty_cycle_for_angle(97))   # positive is internal rotation
-    # pca9685.duty(5, Servo.get_12_bit_duty_cycle_for_angle(87))  # positive is back
-    # pca9685.duty(6, Servo.get_12_bit_duty_cycle_for_angle(140))  # positive is back
-
-    # pose: shoulder elbow wrist
-    # sphinx: 0 -50 110
-    # down_chicken: 40 -90 140
-
     profiler = Profiler()
     state_machine = StateMachine()
 
@@ -165,17 +152,19 @@ def main(rtc, lcd, sbus_uart, debug_uart):
 if __name__ == '__main__':
     rtc, lcd, sbus_uart, debug_uart = setup()
 
-    front_right_shoulder = Servo(0, 0, 82, 180, False)
-    front_right_leg = Servo(1, 0, 115, 180, False)
-    front_right_foot = Servo(2, 0, 32, 180, False)
-    front_left_shoulder = Servo(4, 0, 97, 180, True)
-    front_left_leg = Servo(5, 0, 87, 180, True)
-    front_left_foot = Servo(6, 0, 140, 180, True)
+    front_right_shoulder = Servo(0, 0, 82, 180, False)  # positive is external rotation
+    front_right_leg = Servo(1, 0, 115, 180, False)  # positive is forward
+    front_right_foot = Servo(2, 0, 28, 180, False)  # positive is forward
 
-    rear_right_shoulder = Servo(8, 0, 70, 180, False)
-    rear_right_leg = Servo(9, 0, 90, 180, False)
+    front_left_shoulder = Servo(4, 0, 97, 180, True)  # positive is internal rotation
+    front_left_leg = Servo(5, 0, 95, 180, True)  # positive is back
+    front_left_foot = Servo(6, 0, 142, 180, True)  # positive is back
+
+    rear_right_shoulder = Servo(8, 0, 73, 180, False)
+    rear_right_leg = Servo(9, 0, 84, 180, False)
     rear_right_foot = Servo(10, 0, 32, 180, False)
-    rear_left_shoulder = Servo(12, 0, 100, 180, True)
+
+    rear_left_shoulder = Servo(12, 0, 94, 180, True)
     rear_left_leg = Servo(13, 0, 90, 180, True)
     rear_left_foot = Servo(14, 0, 140, 180, True)
 
