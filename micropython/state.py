@@ -40,7 +40,7 @@ class StateMachine:
             if self.sub_state == 0:
                 profiler.servos_init = True
                 self.sub_state = 1
-            elif (self.sub_state == 1) and (ticks_diff(last_loop_ms, self.last_state_transition_us) > 4e6):
+            elif (self.sub_state == 1) and (ticks_diff(last_loop_ms, self.last_state_transition_us) > 2e6):
                 self.state = self.DOWN
                 self.last_state_transition_us = last_loop_ms
 
@@ -56,7 +56,7 @@ class StateMachine:
                     rear_right_x=0, rear_right_y=-30, rear_right_z=100,
                     rear_left_x=0, rear_left_y=-30, rear_left_z=100,
                 )
-                profiler.add_position_target(  # sphinx
+                profiler.add_position_target(
                     front_right_x=0, front_right_y=-30, front_right_z=200,
                     front_left_x=0, front_left_y=-30, front_left_z=200,
                     rear_right_x=0, rear_right_y=-30, rear_right_z=200,
@@ -112,3 +112,11 @@ class StateMachine:
             if profiler.get_motion_complete():
                 self.state = self.DOWN
                 self.last_state_transition_us = last_loop_ms
+
+        # pose for trimming servos
+        # profiler.add_position_target(
+        #     front_right_x=0, front_right_y=115, front_right_z=120,
+        #     front_left_x=0, front_left_y=115, front_left_z=120,
+        #     rear_right_x=0, rear_right_y=115, rear_right_z=120,
+        #     rear_left_x=0, rear_left_y=115, rear_left_z=120,
+        # )
