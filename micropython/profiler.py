@@ -1,114 +1,94 @@
-class Profiler:
-    def __init__(
-            self,
-            front_right_shoulder=None, front_left_shoulder=None,
-            front_right_leg=None, front_left_leg=None,
-            front_right_foot=None, front_left_foot=None,
-            rear_right_shoulder=None, rear_left_shoulder=None,
-            rear_right_leg=None, rear_left_leg=None,
-            rear_right_foot=None, rear_left_foot=None,
-    ):
-        self.front_right_shoulder = Axis(front_right_shoulder)
-        self.front_left_shoulder = Axis(front_left_shoulder)
-        self.front_right_leg = Axis(front_right_leg)
-        self.front_left_leg = Axis(front_left_leg)
-        self.front_right_foot = Axis(front_right_foot)
-        self.front_left_foot = Axis(front_left_foot)
-        self.rear_right_shoulder = Axis(rear_right_shoulder)
-        self.rear_left_shoulder = Axis(rear_left_shoulder)
-        self.rear_right_leg = Axis(rear_right_leg)
-        self.rear_left_leg = Axis(rear_left_leg)
-        self.rear_right_foot = Axis(rear_right_foot)
-        self.rear_left_foot = Axis(rear_left_foot)
+import math
 
-        self.axes = [
-            self.front_right_shoulder,
-            self.front_left_shoulder,
-            self.front_right_leg,
-            self.front_left_leg,
-            self.front_right_foot,
-            self.front_left_foot,
-            self.rear_right_shoulder,
-            self.rear_left_shoulder,
-            self.rear_right_leg,
-            self.rear_left_leg,
-            self.rear_right_foot,
-            self.rear_left_foot,
+
+class Profiler:
+    def __init__(self):
+        self.start_pose_x = 60
+        self.start_pose_y = 12
+        self.start_pose_z = 70
+        self.front_right = Leg(self.start_pose_x, self.start_pose_y, self.start_pose_z)
+        self.front_left = Leg(-self.start_pose_x, self.start_pose_y, self.start_pose_z, True)
+        self.rear_right = Leg(self.start_pose_x, self.start_pose_y, self.start_pose_z)
+        self.rear_left = Leg(-self.start_pose_x, self.start_pose_y, self.start_pose_z, True)
+
+        self.servos_init = False
+
+        self.legs = [
+            self.front_right,
+            self.front_left,
+            self.rear_right,
+            self.rear_left,
         ]
         self.position_target_queue = []
 
     def update_position_targets(
             self,
-            front_right_shoulder=None, front_left_shoulder=None,
-            front_right_leg=None, front_left_leg=None,
-            front_right_foot=None, front_left_foot=None,
-            rear_right_shoulder=None, rear_left_shoulder=None,
-            rear_right_leg=None, rear_left_leg=None,
-            rear_right_foot=None, rear_left_foot=None,
+            front_right_x, front_right_y, front_right_z,
+            front_left_x, front_left_y, front_left_z,
+            rear_right_x, rear_right_y, rear_right_z,
+            rear_left_x, rear_left_y, rear_left_z,
     ):
-        if front_right_shoulder is not None:
-            self.front_right_shoulder.target_deg = front_right_shoulder
-        if front_left_shoulder is not None:
-            self.front_left_shoulder.target_deg = front_left_shoulder
-        if front_right_leg is not None:
-            self.front_right_leg.target_deg = front_right_leg
-        if front_left_leg is not None:
-            self.front_left_leg.target_deg = front_left_leg
-        if front_right_foot is not None:
-            self.front_right_foot.target_deg = front_right_foot
-        if front_left_foot is not None:
-            self.front_left_foot.target_deg = front_left_foot
-        if rear_right_shoulder is not None:
-            self.rear_right_shoulder.target_deg = rear_right_shoulder
-        if rear_left_shoulder is not None:
-            self.rear_left_shoulder.target_deg = rear_left_shoulder
-        if rear_right_leg is not None:
-            self.rear_right_leg.target_deg = rear_right_leg
-        if rear_left_leg is not None:
-            self.rear_left_leg.target_deg = rear_left_leg
-        if rear_right_foot is not None:
-            self.rear_right_foot.target_deg = rear_right_foot
-        if rear_left_foot is not None:
-            self.rear_left_foot.target_deg = rear_left_foot
+        self.front_right.x_target = front_right_x
+        self.front_right.y_target = front_right_y
+        self.front_right.z_target = front_right_z
+        self.front_left.x_target = front_left_x
+        self.front_left.y_target = front_left_y
+        self.front_left.z_target = front_left_z
+        self.rear_right.x_target = rear_right_x
+        self.rear_right.y_target = rear_right_y
+        self.rear_right.z_target = rear_right_z
+        self.rear_left.x_target = rear_left_x
+        self.rear_left.y_target = rear_left_y
+        self.rear_left.z_target = rear_left_z
 
     def add_position_target(
         self,
-        front_right_shoulder=None, front_left_shoulder=None,
-        front_right_leg=None, front_left_leg=None,
-        front_right_foot=None, front_left_foot=None,
-        rear_right_shoulder=None, rear_left_shoulder=None,
-        rear_right_leg=None, rear_left_leg=None,
-        rear_right_foot=None, rear_left_foot=None,
+        front_right_x, front_right_y, front_right_z,
+        front_left_x, front_left_y, front_left_z,
+        rear_right_x, rear_right_y, rear_right_z,
+        rear_left_x, rear_left_y, rear_left_z,
     ):
         self.position_target_queue.append((
-          front_right_shoulder,
-          front_left_shoulder,
-          front_right_leg,
-          front_left_leg,
-          front_right_foot,
-          front_left_foot,
-          rear_right_shoulder,
-          rear_left_shoulder,
-          rear_right_leg,
-          rear_left_leg,
-          rear_right_foot,
-          rear_left_foot,
+            front_right_x, front_right_y, front_right_z,
+            front_left_x, front_left_y, front_left_z,
+            rear_right_x, rear_right_y, rear_right_z,
+            rear_left_x, rear_left_y, rear_left_z,
         ))
 
     def get_position_commands(self):
-        return [axis.command_deg for axis in self.axes]
+        position_commands_by_leg = []
+        if self.servos_init:
+            for leg in self.legs:
+                position_commands_by_leg.append(leg.get_commands_deg())
+            position_commands = [
+                position_commands_by_leg[0][0],
+                position_commands_by_leg[1][0],
+                position_commands_by_leg[0][1],
+                position_commands_by_leg[1][1],
+                position_commands_by_leg[0][2],
+                position_commands_by_leg[1][2],
+                position_commands_by_leg[2][0],
+                position_commands_by_leg[3][0],
+                position_commands_by_leg[2][1],
+                position_commands_by_leg[3][1],
+                position_commands_by_leg[2][2],
+                position_commands_by_leg[3][2],
+            ]
+        else:
+            position_commands = 12 * [None]
+        return position_commands
 
     def tick(self):
-        for axis in self.axes:
-            axis.tick()
+        for leg in self.legs:
+            leg.tick()
 
         if self.get_all_are_in_position() and self.position_target_queue:
             self.update_position_targets(*self.position_target_queue.pop(0))
 
     def get_all_are_in_position(self):
         all_in_position = True
-        for axis in self.axes:
-            if not axis.get_is_in_position():
+        for leg in self.legs:
+            if not leg.get_is_in_position():
                 all_in_position = False
                 break
         return all_in_position
@@ -117,56 +97,93 @@ class Profiler:
         return self.get_all_are_in_position() and (len(self.position_target_queue) == 0)
 
 
-class Axis:
-    def __init__(self, target_deg):
-        self.target_deg = target_deg
-        self.command_deg = target_deg
-        self.command_deg_float = self.command_deg
+class Leg:
+    def __init__(self, x_target, y_target, z_target, invert_x=False):
+        self.x_target = x_target
+        self.y_target = y_target
+        self.z_target = z_target
+
+        self.x_command = x_target
+        self.y_command = y_target
+        self.z_command = z_target
+
+        self.invert_x = invert_x
         self.in_position = True
 
         self._velocity = 0.0
         self._velocity_max = 10.0
-        self._acceleration = 0.02
+        self._acceleration = 0.2
+
+        self._move_dist_total = 0
+        self._move_acceleration_dist = 0
+        self._move_start_x = 0
+        self._move_start_y = 0
+        self._move_start_z = 0
 
     def tick(self):
-        if (self.target_deg is not None) and (self.command_deg is None):
-            # this is the first time this servo is being used (i.e. target is no longer None)
-            self.command_deg = self.target_deg
-            self.command_deg_float = self.target_deg
-        elif self.target_deg is None:
-            # this servo is not used yet
-            self.command_deg = None
-            self.command_deg_float = None
-
-        if (self.target_deg is not None) and (self.command_deg is not None):  # only work on channel that are used
-            remaining_distance = int(self.target_deg - self.command_deg_float)
-
-            stop_distance = abs((self._velocity * self._velocity) / (2 * self._acceleration))
-
-            if remaining_distance > 0:
+        if self.in_position:
+            move_dist = math.sqrt(
+                (self.x_target - self.x_command)**2 +
+                (self.y_target - self.y_command)**2 +
+                (self.z_target - self.z_command)**2
+            )
+            if move_dist != 0:
+                self._move_dist_total = move_dist
+                self._move_acceleration_dist = (self._velocity_max ** 2) / (2 * self._acceleration)
+                if move_dist < (self._move_acceleration_dist * 2):
+                    # move will not reach slew so set accell / decell point to half way through move
+                    self._move_acceleration_dist = self._move_dist_total / 2
+                self._move_start_x = self.x_command
+                self._move_start_y = self.y_command
+                self._move_start_z = self.z_command
                 self.in_position = False
-                if remaining_distance < stop_distance:  # need to slow down
-                    self._velocity -= self._acceleration
-                else:  # speed up towards target
-                    self._velocity += self._acceleration
-                if self._velocity > self._velocity_max:
-                    self._velocity = self._velocity_max
-                self.command_deg_float = self.command_deg_float + self._velocity
-            elif remaining_distance < 0:
-                self.in_position = False
-                if abs(remaining_distance) < stop_distance:  # need to slow down
-                    self._velocity += self._acceleration
-                else:  # speed up towards target
-                    self._velocity -= self._acceleration
-                if self._velocity < -self._velocity_max:
-                    self._velocity = -self._velocity_max
-                self.command_deg_float = self.command_deg_float + self._velocity
-            else:
+        else:
+            dist_traveled = math.sqrt(
+                (self.x_command - self._move_start_x)**2 +
+                (self.y_command - self._move_start_y)**2 +
+                (self.z_command - self._move_start_z)**2
+            )
+            dist_remaining = self._move_dist_total - dist_traveled
+
+            if dist_remaining < self._move_acceleration_dist:
+                if self._velocity > self._acceleration:
+                    self._velocity -= self._acceleration  # slow down
+            elif dist_traveled < self._move_acceleration_dist:
+                if self._velocity < self._velocity_max:
+                    self._velocity += self._acceleration  # speed up
+
+            dist_percent_to_complete = ((dist_traveled + self._velocity) / self._move_dist_total)
+            self.x_command = self._move_start_x + ((self.x_target - self._move_start_x) * dist_percent_to_complete)
+            self.y_command = self._move_start_y + ((self.y_target - self._move_start_y) * dist_percent_to_complete)
+            self.z_command = self._move_start_z + ((self.z_target - self._move_start_z) * dist_percent_to_complete)
+
+            if dist_remaining < 1.0:
+                self.x_command = self.x_target
+                self.y_command = self.y_target
+                self.z_command = self.z_target
                 self.in_position = True
-                self._velocity = 0.0
-                self.command_deg_float = self.target_deg
 
-            self.command_deg = int(self.command_deg_float)
+    def get_commands_deg(self):
+        foot_len = 115.0000058
+        leg_len = 120.4159355
+        shoulder_len = 5.2
+
+        if self.invert_x:
+            x_command_with_invert = -self.x_command
+        else:
+            x_command_with_invert = self.x_command
+
+        diag_hyp = math.sqrt((self.z_command**2) + (shoulder_len - x_command_with_invert) ** 2)
+        leg_length = math.sqrt((diag_hyp**2) - (shoulder_len**2))
+        shoulder_angle = math.asin((shoulder_len + x_command_with_invert) / leg_length) + math.asin(leg_length / diag_hyp) - (math.pi / 2)
+        leg_length = math.sqrt((leg_length**2) + (self.y_command**2))
+        leg_angle_due_to_y_component = math.sin(-self.y_command / self.z_command)
+        leg_angle = -(math.acos((leg_len**2 + leg_length**2 - foot_len**2) / (2 * leg_len * leg_length)) + leg_angle_due_to_y_component)
+        foot_angle = math.pi - math.acos((foot_len**2 + leg_len**2 - leg_length**2) / (2 * foot_len * leg_len))
+        shoulder_angle_deg = math.degrees(shoulder_angle)
+        leg_angle_deg = math.degrees(leg_angle)
+        foot_angle_deg = math.degrees(foot_angle)
+        return [int(x) for x in (shoulder_angle_deg, leg_angle_deg, foot_angle_deg)]
 
     def get_is_in_position(self):
         return self.in_position

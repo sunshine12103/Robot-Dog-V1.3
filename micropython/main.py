@@ -8,7 +8,7 @@ from rc import get_rc_command
 from state import StateMachine
 
 
-class SpotServo:
+class Servo:
     us_min_cmd = 500.0
     us_max_cmd = 2500.0
     deg_min_cmd = 0.0
@@ -35,17 +35,17 @@ class SpotServo:
 
     @staticmethod
     def get_12_bit_duty_cycle_for_us(position_us):
-        if position_us < SpotServo.us_min_cmd or position_us > SpotServo.us_max_cmd:
+        if position_us < Servo.us_min_cmd or position_us > Servo.us_max_cmd:
             raise ValueError
-        duty_cycle_12_bit = int((float(position_us) / float(SpotServo.period_us)) * (2 ** 12))
+        duty_cycle_12_bit = int((float(position_us) / float(Servo.period_us)) * (2 ** 12))
         return duty_cycle_12_bit
 
     @staticmethod
     def get_12_bit_duty_cycle_for_angle(angle_deg):
-        if angle_deg < SpotServo.deg_min_cmd or angle_deg > SpotServo.deg_max_cmd:
+        if angle_deg < Servo.deg_min_cmd or angle_deg > Servo.deg_max_cmd:
             raise ValueError
-        target_us = SpotServo.us_min_cmd + (float(angle_deg) * SpotServo.us_per_deg)
-        return SpotServo.get_12_bit_duty_cycle_for_us(target_us)
+        target_us = Servo.us_min_cmd + (float(angle_deg) * Servo.us_per_deg)
+        return Servo.get_12_bit_duty_cycle_for_us(target_us)
 
     def command_deg(self, angle_deg):
         # zero here will be legs straight down
@@ -54,8 +54,9 @@ class SpotServo:
             angle_deg_with_inversion_relative_to_middle = -angle_deg
         angle_deg_raw = self.center_angle_deg + angle_deg_with_inversion_relative_to_middle
         if (angle_deg_raw < self.min_angle_deg) or (angle_deg_raw > self.max_angle_deg):
-            raise ValueError
-        self.pca9685.duty(self.pwm_channel, SpotServo.get_12_bit_duty_cycle_for_angle(angle_deg_raw))
+            raise ValueError("{}: {} < {} or {} > {}".format(
+                self.pwm_channel, angle_deg_raw, self.min_angle_deg, angle_deg_raw, self.max_angle_deg))
+        self.pca9685.duty(self.pwm_channel, Servo.get_12_bit_duty_cycle_for_angle(angle_deg_raw))
 
 
 def setup():
@@ -68,8 +69,8 @@ def setup():
     pwm_not_enabled_pin = Pin("Y8", Pin.OUT_PP)
     pwm_not_enabled_pin.low()
 
-    SpotServo.pca9685 = PCA9685(i2c, PWM_ADDR)
-    SpotServo.pca9685.freq(SpotServo.freq_hz)
+    Servo.pca9685 = PCA9685(i2c, PWM_ADDR)
+    Servo.pca9685.freq(Servo.freq_hz)
 
     rtc = RTC()
     rtc.datetime((2020, 3, 8, 7, 21, 32, 0, 0))
@@ -82,19 +83,19 @@ def setup():
 
 def main(rtc, lcd, sbus_uart, debug_uart):
     # front right calibration
-    # pca9685.duty(0, SpotServo.get_12_bit_duty_cycle_for_angle(82))  # positive is external rotation
-    # pca9685.duty(1, SpotServo.get_12_bit_duty_cycle_for_angle(115))  # positive is forward
-    # pca9685.duty(2, SpotServo.get_12_bit_duty_cycle_for_angle(32))  # positive is forward
+    # pca9685.duty(0, Servo.get_12_bit_duty_cycle_for_angle(82))  # positive is external rotation
+    # pca9685.duty(1, Servo.get_12_bit_duty_cycle_for_angle(115))  # positive is forward
+    # pca9685.duty(2, Servo.get_12_bit_duty_cycle_for_angle(32))  # positive is forward
     # front left calibration
-    # pca9685.duty(4, SpotServo.get_12_bit_duty_cycle_for_angle(97))   # positive is internal rotation
-    # pca9685.duty(5, SpotServo.get_12_bit_duty_cycle_for_angle(87))  # positive is back
-    # pca9685.duty(6, SpotServo.get_12_bit_duty_cycle_for_angle(140))  # positive is back
+    # pca9685.duty(4, Servo.get_12_bit_duty_cycle_for_angle(97))   # positive is internal rotation
+    # pca9685.duty(5, Servo.get_12_bit_duty_cycle_for_angle(87))  # positive is back
+    # pca9685.duty(6, Servo.get_12_bit_duty_cycle_for_angle(140))  # positive is back
 
     # pose: shoulder elbow wrist
     # sphinx: 0 -50 110
     # down_chicken: 40 -90 140
 
-    profiler = Profiler(None, None, None, None, None, None, None, None, None, None, None, None)
+    profiler = Profiler()
     state_machine = StateMachine()
 
     # put methods on stack to prevent lookups
@@ -115,7 +116,7 @@ def main(rtc, lcd, sbus_uart, debug_uart):
     rll_cmd = rear_left_leg.command_deg
     rrf_cmd = rear_right_foot.command_deg
     rlf_cmd = rear_left_foot.command_deg
-    loop_rate_us = SpotServo.period_us - 360  # fudge factor here to match loop with ~50Hz PWM = 19.64ms
+    loop_rate_us = Servo.period_us - 360  # fudge factor here to match loop with ~50Hz PWM = 19.64ms
     while True:
         profiler.tick()
         pos_cmds = profiler.get_position_commands()
@@ -164,18 +165,18 @@ def main(rtc, lcd, sbus_uart, debug_uart):
 if __name__ == '__main__':
     rtc, lcd, sbus_uart, debug_uart = setup()
 
-    front_right_shoulder = SpotServo(0, 0, 82, 180, False)
-    front_right_leg = SpotServo(1, 0, 115, 180, False)
-    front_right_foot = SpotServo(2, 0, 32, 180, False)
-    front_left_shoulder = SpotServo(4, 0, 97, 180, True)
-    front_left_leg = SpotServo(5, 0, 87, 180, True)
-    front_left_foot = SpotServo(6, 0, 140, 180, True)
+    front_right_shoulder = Servo(0, 0, 82, 180, False)
+    front_right_leg = Servo(1, 0, 115, 180, False)
+    front_right_foot = Servo(2, 0, 32, 180, False)
+    front_left_shoulder = Servo(4, 0, 97, 180, True)
+    front_left_leg = Servo(5, 0, 87, 180, True)
+    front_left_foot = Servo(6, 0, 140, 180, True)
 
-    rear_right_shoulder = SpotServo(8, 0, 70, 180, False)
-    rear_right_leg = SpotServo(9, 0, 90, 180, False)
-    rear_right_foot = SpotServo(10, 0, 32, 180, False)
-    rear_left_shoulder = SpotServo(12, 0, 100, 180, True)
-    rear_left_leg = SpotServo(13, 0, 90, 180, True)
-    rear_left_foot = SpotServo(14, 0, 140, 180, True)
+    rear_right_shoulder = Servo(8, 0, 70, 180, False)
+    rear_right_leg = Servo(9, 0, 90, 180, False)
+    rear_right_foot = Servo(10, 0, 32, 180, False)
+    rear_left_shoulder = Servo(12, 0, 100, 180, True)
+    rear_left_leg = Servo(13, 0, 90, 180, True)
+    rear_left_foot = Servo(14, 0, 140, 180, True)
 
     main(rtc, lcd, sbus_uart, debug_uart)
