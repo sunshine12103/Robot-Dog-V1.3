@@ -111,8 +111,8 @@ class Leg:
         self.in_position = True
 
         self._velocity = 0.0
-        self._velocity_max = 5.0
-        self._acceleration = 0.1
+        self._velocity_max = 10.0
+        self._acceleration = 0.4
 
         self._move_dist_total = 0
         self._move_acceleration_dist = 0

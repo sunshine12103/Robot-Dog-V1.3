@@ -26,11 +26,10 @@ class StateMachine:
         self.last_state_transition_us = None
 
     def update(self, profiler, rc, last_loop_ms):
-
         if self.state == self.INIT:
             transition = False
             if rc is not None:
-                if rc[6] > 1500:
+                if rc[6] > 500:
                     transition = True
             if transition or DEBUG:
                 self.state = self.TURNING_SERVOS_ON
@@ -57,10 +56,10 @@ class StateMachine:
                     rear_left_x=0, rear_left_y=-30, rear_left_z=100,
                 )
                 profiler.add_position_target(
-                    front_right_x=0, front_right_y=-30, front_right_z=200,
-                    front_left_x=0, front_left_y=-30, front_left_z=200,
-                    rear_right_x=0, rear_right_y=-30, rear_right_z=200,
-                    rear_left_x=0, rear_left_y=-30, rear_left_z=200,
+                    front_right_x=0, front_right_y=-30, front_right_z=140,
+                    front_left_x=0, front_left_y=-30, front_left_z=140,
+                    rear_right_x=0, rear_right_y=-30, rear_right_z=140,
+                    rear_left_x=0, rear_left_y=-30, rear_left_z=140,
                 )
                 self.state = self.MOVING_UP
                 self.last_state_transition_us = last_loop_ms
@@ -68,6 +67,7 @@ class StateMachine:
         if self.state == self.MOVING_UP:
             if profiler.get_motion_complete():
                 self.state = self.UP
+                self.sub_state = 0
                 self.last_state_transition_us = last_loop_ms
 
         if self.state == self.UP:
@@ -76,22 +76,26 @@ class StateMachine:
                 if rc[7] < 500:
                     transition = True
                 else:
-                    if profiler.get_motion_complete():
-                        x_command = ((rc[1] - 980) / 800) * -50
-                        if abs(x_command) < 5:
-                            x_command = 0
-                        y_command = ((rc[0] - 980) / 800) * -40
-                        if abs(y_command) < 5:
-                            y_command = 0
-                        z_command = ((rc[2] - 980) / 800) * 20
-                        if abs(z_command) < 5:
-                            z_command = 0
-                        profiler.add_position_target(  # sphinx
-                            front_right_x=x_command, front_right_y=y_command - 30, front_right_z=200 + z_command,
-                            front_left_x=x_command, front_left_y=y_command - 30, front_left_z=200 + z_command,
-                            rear_right_x=x_command, rear_right_y=y_command - 30, rear_right_z=200 + z_command,
-                            rear_left_x=x_command, rear_left_y=y_command - 30, rear_left_z=200 + z_command,
-                        )
+                    x_command = ((rc[1] - 980) / 800) * -50
+                    if abs(x_command) < 5:
+                        x_command = 0
+                    y_command = ((rc[0] - 980) / 800) * -40
+                    if abs(y_command) < 5:
+                        y_command = 0
+                    z_command = ((rc[2] - 980) / 800) * 15
+                    if abs(z_command) < 5:
+                        z_command = 0
+
+                    if rc[7] > 1500:  # walk mode
+                        self.walk(profiler, y_command)
+                    else:  # translational axes
+                        if profiler.get_motion_complete():
+                            profiler.add_position_target(  # sphinx
+                                front_right_x=x_command, front_right_y=y_command - 30, front_right_z=140 + z_command,
+                                front_left_x=x_command, front_left_y=y_command - 30, front_left_z=140 + z_command,
+                                rear_right_x=x_command, rear_right_y=y_command - 30, rear_right_z=140 + z_command,
+                                rear_left_x=x_command, rear_left_y=y_command - 30, rear_left_z=140 + z_command,
+                            )
             if transition or DEBUG:
                 profiler.add_position_target(
                     front_right_x=0, front_right_y=-30, front_right_z=100,
@@ -112,6 +116,171 @@ class StateMachine:
             if profiler.get_motion_complete():
                 self.state = self.DOWN
                 self.last_state_transition_us = last_loop_ms
+
+    def walk(self, profiler, walk_velocity: float):
+        if (walk_velocity < 0) or (self.sub_state != 0):
+            if profiler.get_motion_complete():
+
+                leg_y_step = 120
+                leg_z = 150
+                leg_z_step = 20
+
+                if self.sub_state == 0:  # shift body weight backwards while moving front leg
+                    leg_y = 0
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 1:  # front left lift
+                    leg_y = 0
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y, front_left_z=leg_z - leg_z_step,
+                        rear_right_x=0, rear_right_y=leg_y, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 2:  # front left forward
+                    leg_y = 0
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z - leg_z_step,
+                        rear_right_x=0, rear_right_y=leg_y, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 3:  # front left lower
+                    leg_y = 0
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+
+                elif self.sub_state == 4:  # shift body weight forward while moving rear leg
+                    leg_y = -70
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 5:  # rear right lift
+                    leg_y = -70
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y, rear_right_z=leg_z - leg_z_step,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 6:  # rear right forward
+                    leg_y = -70
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z - leg_z_step,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 7:  # rear right lower
+                    leg_y = -70
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+
+                elif self.sub_state == 8:  # shift body weight backward while moving front leg
+                    leg_y = -70
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 9:  # front right lift
+                    leg_y = -70
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y, front_right_z=leg_z - leg_z_step,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 10:  # front right forward
+                    leg_y = -70
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z - leg_z_step,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 11:  # front right lower
+                    leg_y = -70
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+
+                elif self.sub_state == 12:  # shift body weight forward while moving rear leg
+                    leg_y = -50 - leg_y_step
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 13:  # rear left lift
+                    leg_y = -50 - leg_y_step
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y, rear_left_z=leg_z - leg_z_step,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 14:  # rear left forward
+                    leg_y = -50 - leg_y_step
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y + leg_y_step, rear_left_z=leg_z - leg_z_step,
+                    )
+                    self.sub_state += 1
+                elif self.sub_state == 15:  # rear left lower
+                    leg_y = -50 - leg_y_step
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=leg_y + leg_y_step, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=leg_y + leg_y_step, rear_left_z=leg_z,
+                    )
+                    self.sub_state += 1
+
+                elif self.sub_state == 16:  # back to starting pose
+                    profiler.add_position_target(
+                        front_right_x=0, front_right_y=-30, front_right_z=leg_z,
+                        front_left_x=0, front_left_y=-30, front_left_z=leg_z,
+                        rear_right_x=0, rear_right_y=-30, rear_right_z=leg_z,
+                        rear_left_x=0, rear_left_y=-30, rear_left_z=leg_z,
+                    )
+                    self.sub_state = 0
 
         # pose for trimming servos
         # profiler.add_position_target(
