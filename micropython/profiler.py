@@ -186,4 +186,9 @@ class Leg:
         return [int(x) for x in (shoulder_angle_deg, leg_angle_deg, foot_angle_deg)]
 
     def get_is_in_position(self):
-        return self.in_position
+        at_targets = (
+                (self.x_target == self.x_command) and
+                (self.y_target == self.y_command) and
+                (self.z_target == self.z_command)
+        )
+        return self.in_position and at_targets
