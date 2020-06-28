@@ -128,8 +128,8 @@ class StateMachine:
 
                 if self.sub_state == 0:  # shift body weight backwards while moving front leg
                     for leg in [profiler.front_left, profiler.front_right, profiler.rear_left, profiler.rear_right]:
-                        leg.velocity_max = 30
-                        leg.acceleration = 1.5
+                        leg.velocity_max = 40
+                        leg.acceleration = 2
 
                     leg_y = 0 * body_y_step
                     profiler.add_position_target(
