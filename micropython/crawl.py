@@ -10,17 +10,23 @@ def crawl(profiler, crawl_velocity: float, sub_state: int) -> int:
     :param sub_state: Current crawl phase to be used and updated by this function.
     :return: Next sub_state.
     """
-    if sub_state == 0:  # if not crawling
-        if crawl_velocity < 0:  # and commanded to craw forward
-            sub_state += 1
-        elif crawl_velocity > 0:  # and command to crawl backwards
-            sub_state -= 1
-    else:  # if crawling
-        if profiler.get_motion_complete():
-
+    if profiler.get_motion_complete():
+        leg_z = 155
+        if sub_state == 0:  # if not crawling
+            if crawl_velocity < 0:  # and commanded to craw forward
+                sub_state += 1
+            elif crawl_velocity > 0:  # and command to crawl backwards
+                sub_state -= 1
+            else:
+                profiler.add_position_target(
+                    front_right_x=0, front_right_y=-30, front_right_z=leg_z,
+                    front_left_x=0, front_left_y=-30, front_left_z=leg_z,
+                    rear_right_x=0, rear_right_y=-30, rear_right_z=leg_z,
+                    rear_left_x=0, rear_left_y=-30, rear_left_z=leg_z,
+                )
+        else:  # if crawling
             leg_y_step = 110
             body_y_step = 54
-            leg_z = 155
             leg_z_step = 35
 
             step_velocity_max = 30.0
@@ -175,16 +181,7 @@ def crawl(profiler, crawl_velocity: float, sub_state: int) -> int:
                 elif crawl_velocity > 0:  # keep crawling
                     sub_state = 15
                 else:  # stop stop crawling and go back to starting pose to
-                    profiler.add_position_target(
-                        front_right_x=0, front_right_y=-30, front_right_z=leg_z,
-                        front_left_x=0, front_left_y=-30, front_left_z=leg_z,
-                        rear_right_x=0, rear_right_y=-30, rear_right_z=leg_z,
-                        rear_left_x=0, rear_left_y=-30, rear_left_z=leg_z,
-                    )
                     sub_state = 0
-                    for leg in [profiler.front_left, profiler.front_right, profiler.rear_left, profiler.rear_right]:
-                        leg.velocity_max = leg.velocity_max_default
-                        leg.acceleration = leg.acceleration_default
 
             if sub_state != 0:
                 if crawl_velocity < 0:
