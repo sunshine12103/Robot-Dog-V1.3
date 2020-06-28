@@ -121,12 +121,13 @@ class StateMachine:
         if (walk_velocity < 0) or (self.sub_state != 0):
             if profiler.get_motion_complete():
 
-                leg_y_step = 120
+                leg_y_step = 110
+                body_y_step = 60
                 leg_z = 150
-                leg_z_step = 20
+                leg_z_step = 30
 
                 if self.sub_state == 0:  # shift body weight backwards while moving front leg
-                    leg_y = 0
+                    leg_y = 0 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y, front_left_z=leg_z,
@@ -135,7 +136,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 1:  # front left lift
-                    leg_y = 0
+                    leg_y = 0 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y, front_left_z=leg_z - leg_z_step,
@@ -144,7 +145,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 2:  # front left forward
-                    leg_y = 0
+                    leg_y = 0 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z - leg_z_step,
@@ -153,7 +154,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 3:  # front left lower
-                    leg_y = 0
+                    leg_y = 0 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -163,7 +164,7 @@ class StateMachine:
                     self.sub_state += 1
 
                 elif self.sub_state == 4:  # shift body weight forward while moving rear leg
-                    leg_y = -70
+                    leg_y = -1 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -172,7 +173,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 5:  # rear right lift
-                    leg_y = -70
+                    leg_y = -1 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -181,7 +182,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 6:  # rear right forward
-                    leg_y = -70
+                    leg_y = -1 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -190,7 +191,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 7:  # rear right lower
-                    leg_y = -70
+                    leg_y = -1 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -200,7 +201,7 @@ class StateMachine:
                     self.sub_state += 1
 
                 elif self.sub_state == 8:  # shift body weight backward while moving front leg
-                    leg_y = -70
+                    leg_y = -2 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -209,7 +210,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 9:  # front right lift
-                    leg_y = -70
+                    leg_y = -2 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z - leg_z_step,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -218,7 +219,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 10:  # front right forward
-                    leg_y = -70
+                    leg_y = -2 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z - leg_z_step,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -227,7 +228,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 11:  # front right lower
-                    leg_y = -70
+                    leg_y = -2 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -237,7 +238,7 @@ class StateMachine:
                     self.sub_state += 1
 
                 elif self.sub_state == 12:  # shift body weight forward while moving rear leg
-                    leg_y = -50 - leg_y_step
+                    leg_y = -3 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -246,7 +247,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 13:  # rear left lift
-                    leg_y = -50 - leg_y_step
+                    leg_y = -3 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -255,7 +256,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 14:  # rear left forward
-                    leg_y = -50 - leg_y_step
+                    leg_y = -3 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
@@ -264,7 +265,7 @@ class StateMachine:
                     )
                     self.sub_state += 1
                 elif self.sub_state == 15:  # rear left lower
-                    leg_y = -50 - leg_y_step
+                    leg_y = -3 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y + leg_y_step, front_right_z=leg_z,
                         front_left_x=0, front_left_y=leg_y + leg_y_step, front_left_z=leg_z,
