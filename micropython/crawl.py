@@ -37,6 +37,7 @@ def crawl(profiler, crawl_velocity: float, sub_state: int) -> int:
                 sub_state = 16
 
             if sub_state == 0:  # shift body weight backwards while moving front leg
+                # todo: fix bug with not going to state zero. Handle new states for not moving
                 profiler.set_velocity_and_acceleration()
                 leg_y = 0 * body_y_step
                 profiler.add_position_target(
