@@ -96,6 +96,16 @@ class Profiler:
     def get_motion_complete(self):
         return self.get_all_are_in_position() and (len(self.position_target_queue) == 0)
 
+    def set_velocity_and_acceleration(self, velocity_max=None, acceleration=None):
+        if velocity_max is None:
+            velocity_max = self.front_right.velocity_max_default
+        if acceleration is None:
+            acceleration = self.front_right.acceleration_default
+
+        for leg in [self.front_left, self.front_right, self.rear_left, self.rear_right]:
+            leg.velocity_max = velocity_max
+            leg.acceleration = acceleration
+
 
 class Leg:
     velocity_max_default = 10.0
