@@ -122,11 +122,15 @@ class StateMachine:
             if profiler.get_motion_complete():
 
                 leg_y_step = 110
-                body_y_step = 60
-                leg_z = 150
-                leg_z_step = 30
+                body_y_step = 52
+                leg_z = 155
+                leg_z_step = 35
 
                 if self.sub_state == 0:  # shift body weight backwards while moving front leg
+                    for leg in [profiler.front_left, profiler.front_right, profiler.rear_left, profiler.rear_right]:
+                        leg.velocity_max = 30
+                        leg.acceleration = 1.5
+
                     leg_y = 0 * body_y_step
                     profiler.add_position_target(
                         front_right_x=0, front_right_y=leg_y, front_right_z=leg_z,
@@ -282,6 +286,9 @@ class StateMachine:
                         rear_left_x=0, rear_left_y=-30, rear_left_z=leg_z,
                     )
                     self.sub_state = 0
+                    for leg in [profiler.front_left, profiler.front_right, profiler.rear_left, profiler.rear_right]:
+                        leg.velocity_max = leg.velocity_max_default
+                        leg.acceleration = leg.acceleration_default
 
         # pose for trimming servos
         # profiler.add_position_target(

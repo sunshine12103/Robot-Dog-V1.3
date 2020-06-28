@@ -98,6 +98,9 @@ class Profiler:
 
 
 class Leg:
+    velocity_max_default = 10.0
+    acceleration_default = 0.4
+
     def __init__(self, x_target, y_target, z_target, invert_x=False):
         self.x_target = x_target
         self.y_target = y_target
@@ -111,8 +114,8 @@ class Leg:
         self.in_position = True
 
         self._velocity = 0.0
-        self._velocity_max = 10.0
-        self._acceleration = 0.4
+        self.velocity_max = self.velocity_max_default
+        self.acceleration = self.acceleration_default
 
         self._move_dist_total = 0
         self._move_acceleration_dist = 0
@@ -129,7 +132,7 @@ class Leg:
             )
             if move_dist != 0:
                 self._move_dist_total = move_dist
-                self._move_acceleration_dist = (self._velocity_max ** 2) / (2 * self._acceleration)
+                self._move_acceleration_dist = (self.velocity_max ** 2) / (2 * self.acceleration)
                 if move_dist < (self._move_acceleration_dist * 2):
                     # move will not reach slew so set accell / decell point to half way through move
                     self._move_acceleration_dist = self._move_dist_total / 2
@@ -146,11 +149,11 @@ class Leg:
             dist_remaining = self._move_dist_total - dist_traveled
 
             if dist_remaining < self._move_acceleration_dist:
-                if self._velocity > (self._acceleration * 2):
-                    self._velocity -= self._acceleration  # slow down
+                if self._velocity > (self.acceleration * 2):
+                    self._velocity -= self.acceleration  # slow down
             elif dist_traveled < self._move_acceleration_dist:
-                if self._velocity < self._velocity_max:
-                    self._velocity += self._acceleration  # speed up
+                if self._velocity < self.velocity_max:
+                    self._velocity += self.acceleration  # speed up
 
             dist_percent_to_complete = ((dist_traveled + self._velocity) / self._move_dist_total)
             self.x_command = self._move_start_x + ((self.x_target - self._move_start_x) * dist_percent_to_complete)
