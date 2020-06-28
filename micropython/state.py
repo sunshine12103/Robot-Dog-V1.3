@@ -285,18 +285,20 @@ class StateMachine:
                         rear_left_x=0, rear_left_y=leg_y + leg_y_step, rear_left_z=leg_z,
                     )
                     self.sub_state += 1
-
-                elif self.sub_state == 16:  # back to starting pose
-                    profiler.add_position_target(
-                        front_right_x=0, front_right_y=-30, front_right_z=leg_z,
-                        front_left_x=0, front_left_y=-30, front_left_z=leg_z,
-                        rear_right_x=0, rear_right_y=-30, rear_right_z=leg_z,
-                        rear_left_x=0, rear_left_y=-30, rear_left_z=leg_z,
-                    )
-                    self.sub_state = 0
-                    for leg in [profiler.front_left, profiler.front_right, profiler.rear_left, profiler.rear_right]:
-                        leg.velocity_max = leg.velocity_max_default
-                        leg.acceleration = leg.acceleration_default
+                elif self.sub_state == 16:
+                    if walk_velocity < 0:  # keep walking
+                        self.sub_state = 1
+                    else:  # stop stop walking and go back to starting pose to
+                        profiler.add_position_target(
+                            front_right_x=0, front_right_y=-30, front_right_z=leg_z,
+                            front_left_x=0, front_left_y=-30, front_left_z=leg_z,
+                            rear_right_x=0, rear_right_y=-30, rear_right_z=leg_z,
+                            rear_left_x=0, rear_left_y=-30, rear_left_z=leg_z,
+                        )
+                        self.sub_state = 0
+                        for leg in [profiler.front_left, profiler.front_right, profiler.rear_left, profiler.rear_right]:
+                            leg.velocity_max = leg.velocity_max_default
+                            leg.acceleration = leg.acceleration_default
 
         # pose for trimming servos
         # profiler.add_position_target(
