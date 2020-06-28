@@ -18,6 +18,7 @@ def crawl(profiler, crawl_velocity: float, sub_state: int) -> int:
             elif crawl_velocity > 0:  # and command to crawl backwards
                 sub_state -= 1
             else:
+                profiler.set_velocity_and_acceleration()
                 profiler.add_position_target(
                     front_right_x=0, front_right_y=-30, front_right_z=leg_z,
                     front_left_x=0, front_left_y=-30, front_left_z=leg_z,
