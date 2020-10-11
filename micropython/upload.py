@@ -17,7 +17,7 @@ files_to_upload = [
 
 port = "/dev/ttyACM0"
 
-for file in files_to_upload:
+for i, file in enumerate(files_to_upload):
     proc = Popen("python pyboard.py -d {} -f cat {}".format(port, file), stdout=PIPE, stderr=PIPE, shell=True)
     proc.wait()
     remote_files_contents = proc.communicate()[0]
@@ -26,16 +26,16 @@ for file in files_to_upload:
         local_file_contents = fp.read()
 
     if remote_files_contents == local_file_contents:
-        print("{} no update needed...".format(file))
+        print("{}/{}:{}\n  no update needed...".format(i + 1, len(files_to_upload), file))
     else:
-        print("{} needs updating...".format(file))
+        print("{}\n  needs updating...".format(file))
         proc = Popen("python pyboard.py -d {} -f cp {} :".format(port, file), stdout=PIPE, stderr=PIPE, shell=True)
         proc.wait()
         errors = proc.communicate()[1]
         if errors != b"":
             print(errors)
             exit(1)
-        print("{} updated...".format(file))
+        print("  updated...")
 
 pyb = Pyboard(port)
 pyb.serial.write(b"\x04")  # soft reset
