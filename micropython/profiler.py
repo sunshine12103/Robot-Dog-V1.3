@@ -109,7 +109,7 @@ class Profiler:
 
 class Leg:
     velocity_max_default = 10.0
-    acceleration_default = 0.4
+    acceleration_default = 0.1
 
     def __init__(self, x_target, y_target, z_target, invert_x=False):
         self.x_target = x_target
