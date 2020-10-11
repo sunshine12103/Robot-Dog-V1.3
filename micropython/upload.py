@@ -49,12 +49,11 @@ pyb = Pyboard(port)
 pyb.serial.write(b"\x04")  # soft reset
 pyb.serial.timeout = 0.2
 try:
-    with open(output_path, "wb", buffering=1) as file_pointer:
+    with open(output_path, "wb", buffering=64) as file_pointer:
         while True:
-            in_waiting = pyb.serial.in_waiting
-            if in_waiting:
-                file_pointer.write(pyb.serial.read(in_waiting))
-            else:
-                time.sleep(0.01)
+            try:
+                file_pointer.write(pyb.serial.read(64))
+            except TimeoutError:
+                pass
 except KeyboardInterrupt:
     pyb.close()
