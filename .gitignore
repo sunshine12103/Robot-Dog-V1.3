@@ -1,0 +1,9 @@
+venv
+.idea
+__pycache__
+nvidia-jetson-nano
+openai
+Spotmicro_-_robot_dog/
+.directory
+*.png
+*.pdf
