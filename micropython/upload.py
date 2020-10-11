@@ -1,4 +1,7 @@
+import time
 from subprocess import Popen, PIPE
+
+from pyboard import Pyboard
 
 files_to_upload = [
     "boot.py",
@@ -12,26 +15,28 @@ files_to_upload = [
     "state.py",
 ]
 
-commands = [
-    "python pyboard.py -d /dev/ttyACM0 -f cp ",
-]
+port = "/dev/ttyACM0"
 
 for file in files_to_upload:
-    proc = Popen("python pyboard.py -d /dev/ttyACM0 -f cat {}".format(file), stdout=PIPE, stderr=PIPE, shell=True)
+    proc = Popen("python pyboard.py -d {} -f cat {}".format(port, file), stdout=PIPE, stderr=PIPE, shell=True)
     proc.wait()
     remote_files_contents = proc.communicate()[0]
-    remote_files_contents = remote_files_contents[remote_files_contents.index(b"\n") + 1:].replace(b"\r\r\n", b"\r\n").strip()
+    remote_files_contents = remote_files_contents[remote_files_contents.index(b"\n") + 1:].replace(b"\r\n", b"\n")
     with open(file, "rb") as fp:
-        local_file_contents = fp.read().strip()
+        local_file_contents = fp.read()
 
     if remote_files_contents == local_file_contents:
         print("{} no update needed...".format(file))
     else:
         print("{} needs updating...".format(file))
-        proc = Popen("python pyboard.py -d /dev/ttyACM0 -f cp {} :".format(file), stdout=PIPE, stderr=PIPE, shell=True)
+        proc = Popen("python pyboard.py -d {} -f cp {} :".format(port, file), stdout=PIPE, stderr=PIPE, shell=True)
         proc.wait()
         errors = proc.communicate()[1]
         if errors != b"":
             print(errors)
             exit(1)
         print("{} updated...".format(file))
+
+pyb = Pyboard(port)
+pyb.serial.write(b"\x04")  # soft reset
+pyb.close()
