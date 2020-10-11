@@ -1,6 +1,6 @@
 import utime
 # noinspection PyUnresolvedReferences
-from pyb import I2C, RTC, Pin, UART
+from pyb import I2C, RTC, Pin, UART, ADC
 from pyb_i2c_lcd import I2cLcd
 
 from pca9685 import PCA9685
@@ -73,15 +73,17 @@ def setup():
     Servo.pca9685 = PCA9685(i2c, PWM_ADDR)
     Servo.pca9685.freq(Servo.freq_hz)
 
+    battery_adc = ADC(Pin.board.Y11)
+
     rtc = RTC()
     rtc.datetime((2020, 3, 8, 7, 21, 32, 0, 0))
 
     sbus_uart = UART(2, 100000, bits=8, parity=0, stop=2, read_buf_len=50, timeout=0)
 
-    return rtc, lcd, sbus_uart
+    return rtc, lcd, sbus_uart, battery_adc
 
 
-def main(rtc, lcd, sbus_uart):
+def main(rtc, lcd, sbus_uart, battery_adc):
     profiler = Profiler()
     state_machine = StateMachine()
 
@@ -104,12 +106,16 @@ def main(rtc, lcd, sbus_uart):
     rrf_cmd = rear_right_foot.command_deg
     rlf_cmd = rear_left_foot.command_deg
     loop_rate_us = Servo.period_us - 360  # fudge factor here to match loop with ~50Hz PWM = 19.64ms
+    battery_readings = []
     while True:
         profiler.tick()
         pos_cmds = profiler.get_position_commands()
 
         lcd.move_to(0, 0)
-        lcd.putstr("Hello {}".format(last_loop_us))
+        battery_readings.insert(0, (battery_adc.read() / 4096) * 18.35)
+        battery_readings = battery_readings[:10]
+        avg_battery_reading_v = sum(battery_readings) / len(battery_readings)
+        lcd.putstr("Hello {:>10}{:>4.1f}V".format(last_loop_us, avg_battery_reading_v))
         rc_command = get_rc_command(sbus_uart)
         state_machine.update(profiler, rc_command, last_loop_us)
 
@@ -150,7 +156,7 @@ def main(rtc, lcd, sbus_uart):
 
 
 if __name__ == '__main__':
-    rtc, lcd, sbus_uart = setup()
+    rtc, lcd, sbus_uart, battery_adc = setup()
 
     front_right_shoulder = Servo(0, 0, 82, 180, False)  # positive is external rotation
     front_right_leg = Servo(1, 0, 111, 180, False)  # positive is forward
@@ -168,4 +174,4 @@ if __name__ == '__main__':
     rear_left_leg = Servo(13, 0, 90, 180, True)
     rear_left_foot = Servo(14, 0, 140, 180, True)
 
-    main(rtc, lcd, sbus_uart)
+    main(rtc, lcd, sbus_uart, battery_adc)
