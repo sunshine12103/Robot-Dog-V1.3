@@ -1,4 +1,3 @@
-import time
 from subprocess import Popen, PIPE
 
 from pyboard import Pyboard
