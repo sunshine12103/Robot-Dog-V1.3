@@ -1,3 +1,4 @@
+import time
 from subprocess import Popen, PIPE
 
 from pyboard import Pyboard
@@ -19,7 +20,12 @@ port = "/dev/ttyACM0"
 for i, file in enumerate(files_to_upload):
     proc = Popen("python pyboard.py -d {} -f cat {}".format(port, file), stdout=PIPE, stderr=PIPE, shell=True)
     proc.wait()
-    remote_files_contents = proc.communicate()[0]
+    proc_com = proc.communicate()
+    errors = proc_com[1]
+    if errors != b"":
+        print(errors)
+        exit(1)
+    remote_files_contents = proc_com[0]
     remote_files_contents = remote_files_contents[remote_files_contents.index(b"\n") + 1:].replace(b"\r\n", b"\n")
     with open(file, "rb") as fp:
         local_file_contents = fp.read()
@@ -36,6 +42,19 @@ for i, file in enumerate(files_to_upload):
             exit(1)
         print("  updated...")
 
+output_path = "/tmp/spot_micro.txt"
+print("Dumping serial output to {}...".format(output_path))
+print("Use <ctrl> + <c> to exit")
 pyb = Pyboard(port)
 pyb.serial.write(b"\x04")  # soft reset
-pyb.close()
+pyb.serial.timeout = 0.2
+try:
+    with open(output_path, "wb", buffering=1) as file_pointer:
+        while True:
+            in_waiting = pyb.serial.in_waiting
+            if in_waiting:
+                file_pointer.write(pyb.serial.read(in_waiting))
+            else:
+                time.sleep(0.01)
+except KeyboardInterrupt:
+    pyb.close()

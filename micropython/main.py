@@ -77,12 +77,11 @@ def setup():
     rtc.datetime((2020, 3, 8, 7, 21, 32, 0, 0))
 
     sbus_uart = UART(2, 100000, bits=8, parity=0, stop=2, read_buf_len=50, timeout=0)
-    debug_uart = UART(3, 115200)
 
-    return rtc, lcd, sbus_uart, debug_uart
+    return rtc, lcd, sbus_uart
 
 
-def main(rtc, lcd, sbus_uart, debug_uart):
+def main(rtc, lcd, sbus_uart):
     profiler = Profiler()
     state_machine = StateMachine()
 
@@ -142,16 +141,16 @@ def main(rtc, lcd, sbus_uart, debug_uart):
         if pos_cmds[11] is not None:
             rlf_cmd(pos_cmds[11])
 
-        debug_uart.write("\x02{}\x03\r\n".format("\t".join(
+        print("\x02{}\x03\r\n".format("\t".join(
             [str(x) for x in [0x1] + pos_cmds + [
                 state_machine.state, len(profiler.position_target_queue), last_loop_us]])))
         if rc_command is not None:
-            debug_uart.write("\x02{}\x03\r\n".format("\t".join(
+            print("\x02{}\x03\r\n".format("\t".join(
                 [str(x) for x in [0x2] + rc_command + [last_loop_us]])))
 
 
 if __name__ == '__main__':
-    rtc, lcd, sbus_uart, debug_uart = setup()
+    rtc, lcd, sbus_uart = setup()
 
     front_right_shoulder = Servo(0, 0, 82, 180, False)  # positive is external rotation
     front_right_leg = Servo(1, 0, 111, 180, False)  # positive is forward
@@ -169,4 +168,4 @@ if __name__ == '__main__':
     rear_left_leg = Servo(13, 0, 90, 180, True)
     rear_left_foot = Servo(14, 0, 140, 180, True)
 
-    main(rtc, lcd, sbus_uart, debug_uart)
+    main(rtc, lcd, sbus_uart)
