@@ -1,4 +1,5 @@
 import utime
+# noinspection PyUnresolvedReferences
 from pyb import I2C, RTC, Pin, UART
 from pyb_i2c_lcd import I2cLcd
 
