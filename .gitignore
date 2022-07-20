@@ -3,7 +3,12 @@ venv
 __pycache__
 nvidia-jetson-nano
 openai
-Spotmicro_-_robot_dog/
+Spotmicro_-_robot_dog
+video
+manuals
+spot_micro
 .directory
 *.png
 *.pdf
+*.mp4
+spot_sim/spot_sim_data.txt
