@@ -82,14 +82,6 @@ grouped together.
 
 ![](video/spot_simulation.drawio.png)
 
-This project features both software and hardware in the loop simulators. The simulation environment can be setup using
-the following commands. Python 3.7.8 32 bit was used for development.
-
-    cd spot_sim
-    pipenv install --deploy
-    pipenv run python spot_sim.py
-    cd ..
-
 The simulator depends on models from a repo which will be checked out using the following commands. Once this is done,
 **remove** the xml tree at `<link name="lidar_link">` and at `<joint name="base_lidar" type="fixed">` to get a robot
 model that does not have the lidar backpack.
@@ -97,6 +89,14 @@ model that does not have the lidar backpack.
     git clone https://gitlab.com/custom_robots/spotmicro/nvidia-jetson-nano.git
     cd nvidia-jetson-nano
     git checkout 108060ee1e182b1e928ee04db1a5c739a9209621
+
+This project features both software and hardware in the loop simulators. The simulation environment can be setup using
+the following commands. Python 3.7.8 32 bit was used for development.
+
+    cd spot_sim
+    pipenv install --deploy
+    pipenv run python spot_sim.py
+    cd ..
 
 ### Software Simulation
 

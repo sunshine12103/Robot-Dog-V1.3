@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "bf555fc3c9891256d4504f603ba00fe66e4a3a88114fb9c14815b3ca2c046019"
+            "sha256": "702e6e0b0b132ead39c6accfadaa32c5837c450a267f00fe3c1530ee9043b6a6"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -30,13 +30,21 @@
             "index": "pypi",
             "version": "==3.2.5"
         },
-        "pysimplegui": {
+        "pyserial": {
             "hashes": [
-                "sha256:3ea18e3aaea515bdf40e7d73015d101d92abddf214b134ae7674e99c58b96598",
-                "sha256:c31c168deb1816d56811bfb4c881b3f4bcaca03b7d5f0ea7ada9772f397582a3"
+                "sha256:3c77e014170dfffbd816e6ffc205e9842efb10be9f58ec16d3e8675b4925cddb",
+                "sha256:c4451db6ba391ca6ca299fb3ec7bae67a5c55dde170964c7a14ceefec02f2cf0"
             ],
             "index": "pypi",
-            "version": "==4.60.1"
+            "version": "==3.5"
+        },
+        "pysimplegui": {
+            "hashes": [
+                "sha256:75ec46694dc975c0e46be8c57a774e038433b53095821d67be3b221aca3fd68d",
+                "sha256:dc62d5722c0a46d709bc8706590b5d47593bd2ed8c1d306ecfee6c05fb6711f5"
+            ],
+            "index": "pypi",
+            "version": "==4.60.3"
         }
     },
     "develop": {}

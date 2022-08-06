@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 pysimplegui = "*"
 pybullet = "*"
+pyserial = "*"
 
 [dev-packages]
 
