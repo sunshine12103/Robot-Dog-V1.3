@@ -3,7 +3,7 @@
 SpotMicro is a 3D model that I found on [Thingiverse](https://www.thingiverse.com/thing:3445283). I was interested in
 the model not only because it looks good but because it also presents some fun robotics challenges.
 
-Check out [https://rogerparks.com/projects/sportmicro/](https://rogerparks.com/projects/sportmicro/) for some videos
+Check out [https://rogerparks.com/projects/sportmicro/](https://rogerparks.com/projects/spotmicro/) for some videos
 showing the robot in action.
 
 ## Hardware
