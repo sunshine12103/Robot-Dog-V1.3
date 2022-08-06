@@ -1,16 +1,10 @@
 # SpotMicro
 
-<figure class="video_container">
-  <iframe src="https://www.youtube.com/embed/MX95Jb588po" frameborder="0" allowfullscreen="true"> </iframe>
-</figure>
-
-
-<figure class="video_container">
-  <iframe src="https://www.youtube.com/embed/enMumwvLAug" frameborder="0" allowfullscreen="true"> </iframe>
-</figure>
-
 SpotMicro is a 3D model that I found on [Thingiverse](https://www.thingiverse.com/thing:3445283). I was interested in
 the model not only because it looks good but because it also presents some fun robotics challenges.
+
+Check out [https://rogerparks.com/projects/sportmicro/](https://rogerparks.com/projects/sportmicro/) for some videos
+showing the robot in action.
 
 ## Hardware
 
@@ -92,7 +86,7 @@ grouped together.
 ![](img/spot_simulation.drawio.png)
 
 The simulator depends on models from a repo which will be checked out using the following commands. Once this is done,
-**remove** the xml tree at `<link name="lidar_link">` and at `<joint name="base_lidar" type="fixed">` from 
+**remove** the xml tree at `<link name="lidar_link">` and at `<joint name="base_lidar" type="fixed">` from
 `urdf\spotmicroai_gen.urdf.xml` to get a robot model that does not have the lidar backpack.
 
     git clone https://gitlab.com/custom_robots/spotmicro/nvidia-jetson-nano.git
@@ -144,5 +138,5 @@ script can be used as follows where `<COM>` is the COM port associated with the 
   updated rapidly.
 * Remove debug flags from micropython directory. They should no longer be necessary since the kinematics demo was
   removed from the Software Simulation.
-* Test upload script now that it no longer reads from the COM port after upload. This functionality is now provided by 
+* Test upload script now that it no longer reads from the COM port after upload. This functionality is now provided by
   the RC Simulator GUI application.
