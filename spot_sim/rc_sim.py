@@ -6,6 +6,7 @@ import threading
 import time
 
 import serial.tools.list_ports
+# noinspection PyPep8Naming
 import PySimpleGUI as sg
 
 
@@ -304,6 +305,6 @@ if __name__ == '__main__':
     try:
         while rc_sim_thread.running:
             time.sleep(0.1)
-    except KeyboardInterrupt as e:
+    except KeyboardInterrupt:
         rc_sim_thread.kill()
         rc_sim_thread.join()

@@ -55,7 +55,7 @@ class ReadSerialFileThread(threading.Thread):
                             serial_buff = bytearray()
                             serial_state = self.SerialStates.LOOKING_FOR_STOP
                     elif serial_state == self.SerialStates.LOOKING_FOR_STOP:
-                        if new_byte == b"\x02":  # shouldn't see start byte mid packet
+                        if new_byte == b"\x02":  # shouldn't see start byte mid-packet
                             serial_state = self.SerialStates.LOOKING_FOR_START
                         elif new_byte == b"\x03":
                             serial_state = self.SerialStates.LOOKING_FOR_START
