@@ -6,7 +6,9 @@ the model not only because it looks good but because it also presents some fun r
 ## Hardware
 
 I outfitted the robot with a set of electronics similar to those listed on
-the [SpotMicroAI](https://spotmicroai.readthedocs.io/en/latest/gettingStarted/#electronics) site.
+the [SpotMicroAI](https://spotmicroai.readthedocs.io/en/latest/gettingStarted/#electronics) site. Regrettably, I printed
+the model in PETG which made gluing components together very difficult. Many of the parts were modified using
+PrusaSlicer or mechanically, after printing, to make the servos fit.
 
 ![](video/spot_hardware.drawio.png)
 
