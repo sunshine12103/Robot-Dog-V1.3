@@ -44,7 +44,7 @@ class RCSimThread(threading.Thread):
         # Event loop to process 'events' and get the 'values' of the inputs
         previous_simulation_mode = self.simulation_mode
         while self.running:
-            event, values = self.window.read(timeout=1000)
+            event, values = self.window.read(timeout=200)
 
             if event is sg.WIN_CLOSED:  # if user closes window or clicks cancel
                 self.write_to_log_and_gui_log('RC Simulator Window Closed')
@@ -262,9 +262,9 @@ class RCSimThread(threading.Thread):
 
     def write_com_port_to_file(self):
         if self.com_port.is_open:  # Make sure port is open before trying to interface with it
-            if self.com_port.in_waiting:
-                bytes_from_serial_port = self.com_port.read()
-                with open(self.file_path, 'a') as sim_data_fp:
+            if self.com_port.in_waiting >= 64:
+                bytes_from_serial_port = self.com_port.read(64)
+                with open(self.file_path, 'a', buffering=64) as sim_data_fp:
                     sim_data_fp.write(bytes_from_serial_port.decode())
                 self.write_to_log_and_gui_log("RC Simulator Wrote: ".format(bytes_from_serial_port))
             else:

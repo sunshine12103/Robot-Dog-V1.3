@@ -8,7 +8,4 @@ video
 manuals
 spot_micro
 .directory
-*.png
-*.pdf
-*.mp4
 spot_sim/spot_sim_data.txt

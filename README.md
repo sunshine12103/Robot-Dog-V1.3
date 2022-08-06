@@ -10,7 +10,7 @@ the [SpotMicroAI](https://spotmicroai.readthedocs.io/en/latest/gettingStarted/#e
 the model in PETG which made gluing components together very difficult. Many of the parts were modified using
 PrusaSlicer or mechanically, after printing, to make the servos fit.
 
-![](video/spot_hardware.drawio.png)
+![](img/spot_hardware.drawio.png)
 
 | Quantity | Item                                                   |
 |----------|--------------------------------------------------------|
@@ -80,15 +80,16 @@ grouped together.
 
 ### Simulation Virtual Environment Setup
 
-![](video/spot_simulation.drawio.png)
+![](img/spot_simulation.drawio.png)
 
 The simulator depends on models from a repo which will be checked out using the following commands. Once this is done,
-**remove** the xml tree at `<link name="lidar_link">` and at `<joint name="base_lidar" type="fixed">` to get a robot
-model that does not have the lidar backpack.
+**remove** the xml tree at `<link name="lidar_link">` and at `<joint name="base_lidar" type="fixed">` from 
+`urdf\spotmicroai_gen.urdf.xml` to get a robot model that does not have the lidar backpack.
 
     git clone https://gitlab.com/custom_robots/spotmicro/nvidia-jetson-nano.git
     cd nvidia-jetson-nano
     git checkout 108060ee1e182b1e928ee04db1a5c739a9209621
+    cd ..
 
 This project features both software and hardware in the loop simulators. The simulation environment can be setup using
 the following commands. Python 3.7.8 32 bit was used for development.
@@ -117,6 +118,16 @@ In this mode of operation, a physical RC transmitter feeds RC commands to the RC
 decides how to actuate the servos. This is accomplished fairly simply since the robot writes Servo Command Packets out
 to a UART.
 
+### Upload
+
+The `micropython/pyboard.py` and `micropython\upload.py` scripts work together to enable a more streamlined development
+flow when working with the PyBoard. The script diffs source files and only updates those that are out of date. The
+script can be used as follows where `<COM>` is the COM port associated with the robot's UART.
+
+    cd spot_sim
+    pipenv run upload.py <COM>
+    cd ..
+
 ## Future Work
 
 * Adjust the window read timeout in `rc_sim.py` to allow the COM port to be copied over to `spot_sim_data.txt` more
@@ -124,3 +135,5 @@ to a UART.
   updated rapidly.
 * Remove debug flags from micropython directory. They should no longer be necessary since the kinematics demo was
   removed from the Software Simulation.
+* Test upload script now that it no longer reads from the COM port after upload. This functionality is now provided by 
+  the RC Simulator GUI application.
