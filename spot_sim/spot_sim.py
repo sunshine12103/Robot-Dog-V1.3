@@ -16,6 +16,8 @@ def main():
             while time.perf_counter() < spot_sim.next_loop_s:
                 time.sleep(0.0001)
             spot_sim.next_loop_s = time.perf_counter() + loop_period_s
+            if spot_sim.rc_thread.window.was_closed():
+                raise KeyboardInterrupt
     except (KeyboardInterrupt, pybullet.error) as e:
         logging.info("Caught exception... Killing threads then terminating...")
         spot_sim.serial_thread.kill()

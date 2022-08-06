@@ -140,21 +140,6 @@ class SpotSim:
         pybullet.setAdditionalSearchPath(pybullet_data.getDataPath())  # used by loadURDF
         pybullet.configureDebugVisualizer(pybullet.COV_ENABLE_GUI, 0)
 
-        # for kinematics demo
-        self.movement_state = 0
-        self.forward_target = 0.0
-        self.forward_target_going_up = True
-        self.height_target = 0.180
-        self.height_target_going_up = True
-        self.side_target = 0.0
-        self.side_target_going_up = True
-        self.roll_target = 0.0
-        self.roll_target_going_up = True
-        self.pitch_target = 0.0
-        self.pitch_target_going_up = True
-        self.yaw_target = 0.0
-        self.yaw_target_going_up = True
-
         # for software sim
         self.profiler = Profiler()
         self.state_machine = state.StateMachine()
@@ -164,14 +149,11 @@ class SpotSim:
         self.serial_thread.start()
         self.next_loop_s = 0  # updated by main loop in sim
 
-        self._env_step_counter = 0
-
     def reset(self):
-        self._env_step_counter = 0
         pybullet.resetSimulation()
         pybullet.setGravity(0, 0, -9.8)
         pybullet.setTimeStep(0.01)
-        plane_id = pybullet.loadURDF("plane.urdf")
+        pybullet.loadURDF("plane.urdf")
 
         pybullet.resetDebugVisualizerCamera(
             cameraDistance=0.75,
@@ -197,42 +179,40 @@ class SpotSim:
             # modify toe physics
             if joint[1][-3:] == b"toe":
                 pybullet.changeDynamics(self.bot_id, joint[0], lateralFriction=0.2)
-                # pybullet.changeDynamics(self.bot_id, joint[0], contactStiffness=0, contactDamping=0.01)
 
-    def _compute_observation(self):
-        motor_positions = []
-        joint_motors = [
-            b"front_left_leg", b"front_right_leg", b"front_left_foot", b"front_right_foot",
-            b"rear_left_leg", b"rear_right_leg", b"rear_left_foot", b"rear_right_foot"]
-        num_joints = pybullet.getNumJoints(self.bot_id)
-        joint_info = [pybullet.getJointInfo(self.bot_id, i) for i in range(num_joints)]
-        for joint in joint_info:
-            if joint[1] in joint_motors:
-                motor_positions.append(pybullet.getJointState(self.bot_id, joint[0])[0])
-
-        link_world_position, link_quaternion_orientation = pybullet.getLinkState(self.bot_id, 0)[:2]
-        link_euler_orientation = pybullet.getEulerFromQuaternion(link_quaternion_orientation)
+        # Start robot in prone position
+        start_shoulder = 51
+        start_leg = -54
+        start_foot = 140
+        self.goto_deg(
+            start_shoulder, start_shoulder,
+            start_leg, start_leg,
+            start_foot, start_foot,
+            start_shoulder, start_shoulder,
+            start_leg, start_leg,
+            start_foot, start_foot,
+        )
 
     def step(self):
-        # self._kinematics_demo()
-        # self._hardware_sim()
-        self._software_sim()
-        
-        pybullet.stepSimulation()
-        self._env_step_counter += 1
+        if self.rc_thread.simulation_mode in (
+                rc_sim.SimulationMode.SW_GUI, rc_sim.SimulationMode.SW_TX
+        ):
+            self._software_sim()
+        elif self.rc_thread.simulation_mode is rc_sim.SimulationMode.HW:
+            self._hardware_sim()
+        else:
+            raise KeyError(
+                'Unknown Simulation Mode: {}'.format(self.rc_thread.simulation_mode)
+            )
 
-    def _kinematics_demo(self):
-        targets = self.kinematics_demo()
-        self.goto_deg(*targets)
+        pybullet.stepSimulation()
 
     def _hardware_sim(self):
         targets = self.serial_thread.get_targets()
         if targets:
             self.goto_deg(*targets)
 
-    def _software_sim(self, rc_input=True):
-        if not rc_input:
-            state.DEBUG = True
+    def _software_sim(self):
         self.profiler.tick()
         pos_cmds = self.profiler.get_position_commands()
         rc_command = self.serial_thread.get_rcs()
@@ -256,7 +236,7 @@ class SpotSim:
             [b"rear_right_leg", b"rear_left_leg"],
             [b"rear_right_foot", b"rear_left_foot"],
         ]
-        print_angles = False
+        log_servo_angles = False
         controlled_joints = []
         for joint_pair in joint_pairs:
             controlled_joints += [joint_pair[0], joint_pair[1]]
@@ -267,7 +247,11 @@ class SpotSim:
         for joint in joint_info:
             if joint[1] in param_dict_with_b_keys.keys():
                 if param_dict_with_b_keys[joint[1]] is not None:
-                    target_position = math.radians(param_dict_with_b_keys[joint[1]])
+                    target_position_degrees = param_dict_with_b_keys[joint[1]]
+                    if self.rc_thread.log_servo_angles:
+                        self.rc_thread.write_to_log_and_gui_log(
+                            '{}: {}'.format(joint[1], target_position_degrees))
+                    target_position = math.radians(target_position_degrees)
                     if b"left_shoulder" in joint[1]:
                         target_position = -target_position
                     pybullet.setJointMotorControl2(
@@ -278,104 +262,10 @@ class SpotSim:
                         maxVelocity=math.radians(1 / (0.11 / 60)),  # radians / sec : servo is 0.11s/60deg
                         force=35,
                     )
-            if print_angles:
+            if self.rc_thread.log_joint_euler_angles:
                 link_world_position, link_quaternion_orientation = pybullet.getLinkState(self.bot_id, 0)[:2]
                 link_euler_orientation = pybullet.getEulerFromQuaternion(link_quaternion_orientation)
-                print("{}: {}".format(joint[1], link_euler_orientation))
-
-    def kinematics_demo(self):
-        N57 = 0.1150000058  # URDF Dimensions
-        N58 = 0.1204159355  # URDF Dimensions
-        # N57 = 0.108454  # CAD Measured Y Delta  76.157mm, Z Delta 77.217mm = 108.454mm
-        # N58 = 0.135558  # CAD Measured Y Delta 102.793mm, Z Delta 88.372mm = 135.558mm
-
-        if self.movement_state == 0:
-            if self.height_target_going_up:
-                self.height_target += 0.001
-            else:
-                self.height_target -= 0.001
-
-        if self.movement_state == 1:
-            if self.forward_target_going_up:
-                self.forward_target += 0.001
-            else:
-                self.forward_target -= 0.001
-
-        if self.movement_state == 2:
-            if self.side_target_going_up:
-                self.side_target += 0.001
-            else:
-                self.side_target -= 0.001
-
-        if self.movement_state == 3:
-            if self.roll_target_going_up:
-                self.roll_target += 0.2
-            else:
-                self.roll_target -= 0.2
-
-        if self.height_target > 0.2 and self.height_target_going_up:
-            self.height_target_going_up = False
-            self.movement_state += 1
-        if self.height_target < 0.12 and not self.height_target_going_up:
-            self.height_target_going_up = True
-
-        if self.forward_target > 0.05 and self.forward_target_going_up:
-            self.forward_target_going_up = False
-            self.movement_state += 1
-        if self.forward_target < -0.03 and not self.forward_target_going_up:
-            self.forward_target_going_up = True
-
-        if self.side_target > 0.05 and self.side_target_going_up:
-            self.side_target_going_up = False
-            self.movement_state += 1
-        if self.side_target < -0.05 and not self.side_target_going_up:
-            self.side_target_going_up = True
-
-        if self.roll_target > 20 and self.roll_target_going_up:
-            self.roll_target_going_up = False
-            self.movement_state += 1
-        if self.roll_target < -20 and not self.roll_target_going_up:
-            self.roll_target_going_up = True
-
-        if self.movement_state == 3:
-            self.movement_state = 0
-
-        forward_target = self.forward_target
-        height_target = self.height_target
-        side_target = self.side_target
-        shoulder_length = 0.052
-        body_width = 0.072
-
-        r_height_target = height_target + ((math.tan(math.radians(self.roll_target)) * (body_width / 2)))
-        l_height_target = height_target - ((math.tan(math.radians(self.roll_target)) * (body_width / 2)))
-
-        r_diag_hyp = math.sqrt(r_height_target**2 + (shoulder_length - side_target)**2)
-        r_leg_length = math.sqrt(r_diag_hyp**2 - shoulder_length**2)
-        right_shoulder_angle = math.asin((shoulder_length - side_target) / r_leg_length) + math.asin(r_leg_length / r_diag_hyp) - (math.pi / 2)
-        r_leg_length = math.sqrt(r_leg_length**2 + forward_target**2)
-        r_A_due_to_forward_target = math.sin(forward_target / r_height_target)
-        right_leg_angle = -(math.acos((N58**2 + r_leg_length**2 - N57**2) / (2 * N58 * r_leg_length)) + r_A_due_to_forward_target)
-        right_foot_angle = math.pi - math.acos((N57**2 + N58**2 - r_leg_length**2) / (2 * N57 * N58))
-
-        l_diag_hyp = math.sqrt(l_height_target**2 + (shoulder_length + side_target)**2)
-        l_leg_length = math.sqrt(l_diag_hyp**2 - shoulder_length**2)
-        left_shoulder_angle = math.asin((shoulder_length + side_target) / l_leg_length) + math.asin(l_leg_length / l_diag_hyp) - (math.pi / 2)
-        l_leg_length = math.sqrt(l_leg_length**2 + forward_target**2)
-        l_A_due_to_forward_target = math.sin(forward_target / l_height_target)
-        left_leg_angle = -(math.acos((N58**2 + l_leg_length**2 - N57**2) / (2 * N58 * l_leg_length)) + l_A_due_to_forward_target)
-        left_foot_angle = math.pi - math.acos((N57**2 + N58**2 - l_leg_length**2) / (2 * N57 * N58))
-
-        return [math.degrees(x) for x in [
-            right_shoulder_angle,
-            left_shoulder_angle,
-            right_leg_angle,
-            left_leg_angle,
-            right_foot_angle,
-            left_foot_angle,
-            right_shoulder_angle,
-            left_shoulder_angle,
-            right_leg_angle,
-            left_leg_angle,
-            right_foot_angle,
-            left_foot_angle,
-        ]]
+                self.rc_thread.write_to_log_and_gui_log("{}: {}".format(
+                    joint[1],
+                    [math.degrees(component) for component in link_euler_orientation]
+                ))
