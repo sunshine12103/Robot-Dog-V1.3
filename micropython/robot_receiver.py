@@ -105,6 +105,10 @@ servo_commands = [
 print("Ready for PC control commands")
 usb.write("READY\n")
 
+# Crawl state: 0=stop, 1=left, 2=right
+crawl_mode = 0
+crawl_rc_channels = None
+
 # Main control loop
 buffer = ""
 last_loop_us = utime.ticks_us()
@@ -183,23 +187,25 @@ while True:
                 
                 # CRAWL mode - actual walking (rc[7] > 1500)
                 elif cmd == "CRAWL_LEFT":
-                    # rc[7]=1580 (>1500 = crawl mode), rc[0]=1380 (y_command > 0 = left)
-                    rc_channels = [1380, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    # Set crawl mode to left - will continue in main loop
+                    crawl_mode = 1
+                    crawl_rc_channels = [1380, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
                     usb.write("OK CRAWL_LEFT\n")
                     print("Crawling left...")
                 
                 elif cmd == "CRAWL_STOP":
-                    # Back to standing mode (rc[7]=1000, < 1500)
+                    # Stop crawling
+                    crawl_mode = 0
+                    crawl_rc_channels = None
                     rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
                     state_machine.update(profiler, rc_channels, last_loop_us)
                     usb.write("OK CRAWL_STOP\n")
                     print("Stopping crawl...")
                 
                 elif cmd == "CRAWL_RIGHT":
-                    # rc[7]=1580 (>1500 = crawl mode), rc[0]=580 (y_command < 0 = right)
-                    rc_channels = [580, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    # Set crawl mode to right - will continue in main loop
+                    crawl_mode = 2
+                    crawl_rc_channels = [580, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
                     usb.write("OK CRAWL_RIGHT\n")
                     print("Crawling right...")
                     
@@ -208,6 +214,10 @@ while True:
                     
             except Exception as e:
                 usb.write("ERROR {}\n".format(str(e)))
+    
+    # Continue crawling if in crawl mode
+    if crawl_mode != 0 and crawl_rc_channels is not None:
+        state_machine.update(profiler, crawl_rc_channels, last_loop_us)
     
     # Update profiler and servo positions
     profiler.tick()
