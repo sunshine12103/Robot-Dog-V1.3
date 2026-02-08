@@ -146,12 +146,62 @@ while True:
                     usb.write("OK LEAN_LEFT\n")
                     print("Leaning left...")
                 
+                elif cmd == "LEAN_CENTER":
+                    # Center position - all at 980
+                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    usb.write("OK LEAN_CENTER\n")
+                    print("Centering...")
+                
                 elif cmd == "LEAN_RIGHT":
                     # Use rc[1] for left/right lean
                     rc_channels = [980, 580, 980, 980, 980, 980, 1580, 1000] + [980] * 8
                     state_machine.update(profiler, rc_channels, last_loop_us)
                     usb.write("OK LEAN_RIGHT\n")
                     print("Leaning right...")
+                
+                elif cmd == "WALK_FORWARD":
+                    # rc[0] > 980 = tilt body forward
+                    rc_channels = [1380, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    usb.write("OK WALK_FORWARD\n")
+                    print("Moving forward...")
+                
+                elif cmd == "WALK_CENTER":
+                    # Center position
+                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    usb.write("OK WALK_CENTER\n")
+                    print("Centering...")
+                
+                elif cmd == "WALK_BACKWARD":
+                    # rc[0] < 980 = tilt body backward
+                    rc_channels = [580, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    usb.write("OK WALK_BACKWARD\n")
+                    print("Moving backward...")
+                
+                # CRAWL mode - actual walking (rc[7] > 1500)
+                elif cmd == "CRAWL_LEFT":
+                    # rc[7]=1580 (>1500 = crawl mode), rc[0]=1380 (y_command > 0 = left)
+                    rc_channels = [1380, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
+                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    usb.write("OK CRAWL_LEFT\n")
+                    print("Crawling left...")
+                
+                elif cmd == "CRAWL_STOP":
+                    # Back to standing mode (rc[7]=1000, < 1500)
+                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    usb.write("OK CRAWL_STOP\n")
+                    print("Stopping crawl...")
+                
+                elif cmd == "CRAWL_RIGHT":
+                    # rc[7]=1580 (>1500 = crawl mode), rc[0]=580 (y_command < 0 = right)
+                    rc_channels = [580, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
+                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    usb.write("OK CRAWL_RIGHT\n")
+                    print("Crawling right...")
                     
                 else:
                     usb.write("ERROR Unknown command\n")

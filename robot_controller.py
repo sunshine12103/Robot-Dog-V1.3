@@ -67,15 +67,60 @@ class RobotControllerGUI:
         lean_frame = ttk.Frame(ctrl_frame)
         lean_frame.pack(pady=10)
         
-        self.lean_left_btn = tk.Button(lean_frame, text="← Lean Left", font=("Arial", 16, "bold"),
-                                       bg="#9C27B0", fg="white", height=2, width=12,
+        self.lean_left_btn = tk.Button(lean_frame, text="← Left", font=("Arial", 14, "bold"),
+                                       bg="#9C27B0", fg="white", height=2, width=8,
                                        command=self.lean_left, state=tk.DISABLED)
-        self.lean_left_btn.pack(side=tk.LEFT, padx=10)
+        self.lean_left_btn.pack(side=tk.LEFT, padx=5)
         
-        self.lean_right_btn = tk.Button(lean_frame, text="Lean Right →", font=("Arial", 16, "bold"),
-                                        bg="#9C27B0", fg="white", height=2, width=12,
+        self.lean_center_btn = tk.Button(lean_frame, text="● Center", font=("Arial", 14, "bold"),
+                                         bg="#607D8B", fg="white", height=2, width=8,
+                                         command=self.lean_center, state=tk.DISABLED)
+        self.lean_center_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.lean_right_btn = tk.Button(lean_frame, text="Right →", font=("Arial", 14, "bold"),
+                                        bg="#9C27B0", fg="white", height=2, width=8,
                                         command=self.lean_right, state=tk.DISABLED)
-        self.lean_right_btn.pack(side=tk.LEFT, padx=10)
+        self.lean_right_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Walk buttons frame (Forward/Backward)
+        walk_frame = ttk.Frame(ctrl_frame)
+        walk_frame.pack(pady=10)
+        
+        self.walk_forward_btn = tk.Button(walk_frame, text="↑ Forward", font=("Arial", 14, "bold"),
+                                          bg="#2196F3", fg="white", height=2, width=8,
+                                          command=self.walk_forward, state=tk.DISABLED)
+        self.walk_forward_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.walk_center_btn = tk.Button(walk_frame, text="● Center", font=("Arial", 14, "bold"),
+                                         bg="#607D8B", fg="white", height=2, width=8,
+                                         command=self.walk_center, state=tk.DISABLED)
+        self.walk_center_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.walk_backward_btn = tk.Button(walk_frame, text="↓ Backward", font=("Arial", 14, "bold"),
+                                           bg="#2196F3", fg="white", height=2, width=8,
+                                           command=self.walk_backward, state=tk.DISABLED)
+        self.walk_backward_btn.pack(side=tk.LEFT, padx=5)
+        
+        # Crawl buttons frame (Actual walking)
+        crawl_frame = ttk.Frame(ctrl_frame)
+        crawl_frame.pack(pady=10)
+        
+        ttk.Label(crawl_frame, text="WALK:", font=("Arial", 12, "bold")).pack(side=tk.LEFT, padx=5)
+        
+        self.crawl_left_btn = tk.Button(crawl_frame, text="⇐ Walk Left", font=("Arial", 14, "bold"),
+                                        bg="#FF9800", fg="white", height=2, width=10,
+                                        command=self.crawl_left, state=tk.DISABLED)
+        self.crawl_left_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.crawl_stop_btn = tk.Button(crawl_frame, text="■ Stop", font=("Arial", 14, "bold"),
+                                        bg="#795548", fg="white", height=2, width=8,
+                                        command=self.crawl_stop, state=tk.DISABLED)
+        self.crawl_stop_btn.pack(side=tk.LEFT, padx=5)
+        
+        self.crawl_right_btn = tk.Button(crawl_frame, text="Walk Right ⇒", font=("Arial", 14, "bold"),
+                                         bg="#FF9800", fg="white", height=2, width=10,
+                                         command=self.crawl_right, state=tk.DISABLED)
+        self.crawl_right_btn.pack(side=tk.LEFT, padx=5)
         
         # Status
         self.robot_status = ttk.Label(ctrl_frame, text="Robot: Not Ready", 
@@ -159,7 +204,14 @@ class RobotControllerGUI:
         self.stand_btn.config(state=state)
         self.sit_btn.config(state=state)
         self.lean_left_btn.config(state=state)
+        self.lean_center_btn.config(state=state)
         self.lean_right_btn.config(state=state)
+        self.walk_forward_btn.config(state=state)
+        self.walk_center_btn.config(state=state)
+        self.walk_backward_btn.config(state=state)
+        self.crawl_left_btn.config(state=state)
+        self.crawl_stop_btn.config(state=state)
+        self.crawl_right_btn.config(state=state)
     
     def send_command(self, command):
         if not self.serial_port or not self.serial_port.is_open:
@@ -188,9 +240,37 @@ class RobotControllerGUI:
         self.send_command("LEAN_LEFT")
         self.robot_status.config(text="Robot: Leaning Left", foreground="purple")
     
+    def lean_center(self):
+        self.send_command("LEAN_CENTER")
+        self.robot_status.config(text="Robot: Centered", foreground="green")
+    
     def lean_right(self):
         self.send_command("LEAN_RIGHT")
         self.robot_status.config(text="Robot: Leaning Right", foreground="purple")
+    
+    def walk_forward(self):
+        self.send_command("WALK_FORWARD")
+        self.robot_status.config(text="Robot: Moving Forward", foreground="blue")
+    
+    def walk_center(self):
+        self.send_command("WALK_CENTER")
+        self.robot_status.config(text="Robot: Centered", foreground="green")
+    
+    def walk_backward(self):
+        self.send_command("WALK_BACKWARD")
+        self.robot_status.config(text="Robot: Moving Backward", foreground="blue")
+    
+    def crawl_left(self):
+        self.send_command("CRAWL_LEFT")
+        self.robot_status.config(text="Robot: Walking Left 🚶", foreground="orange")
+    
+    def crawl_stop(self):
+        self.send_command("CRAWL_STOP")
+        self.robot_status.config(text="Robot: Stopped", foreground="green")
+    
+    def crawl_right(self):
+        self.send_command("CRAWL_RIGHT")
+        self.robot_status.config(text="Robot: Walking Right 🚶", foreground="orange")
     
     def log(self, message):
         self.log_text.config(state=tk.NORMAL)
