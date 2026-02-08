@@ -125,19 +125,33 @@ while True:
             
             try:
                 if cmd == "STAND":
-                    # Create fake RC channels: [arm, mode, pitch, roll, throttle, ...]
-                    # arm=1580 (armed), mode=1580 (stand), pitch/roll/throttle=980 (center)
-                    rc_channels = [1580, 1580, 980, 980, 980] + [980] * 11
+                    # STAND: rc[6]=1580 (arm), rc[7]=1000 (stand mode)
+                    # rc[0]=rc[1]=980 (no tilt)
+                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
                     state_machine.update(profiler, rc_channels, last_loop_us)
                     usb.write("OK STAND\n")
                     print("Standing up...")
                     
                 elif cmd == "SIT":
-                    # arm=1580 (armed), mode=180 (sit), others centered
-                    rc_channels = [1580, 180, 980, 980, 980] + [980] * 11
+                    # SIT: rc[6]=1580 (arm), rc[7]=180 (<500 = sit)
+                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 180] + [980] * 8
                     state_machine.update(profiler, rc_channels, last_loop_us)
                     usb.write("OK SIT\n")
                     print("Sitting down...")
+                
+                elif cmd == "LEAN_LEFT":
+                    # Use rc[1] for left/right lean
+                    rc_channels = [980, 1380, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    usb.write("OK LEAN_LEFT\n")
+                    print("Leaning left...")
+                
+                elif cmd == "LEAN_RIGHT":
+                    # Use rc[1] for left/right lean
+                    rc_channels = [980, 580, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    usb.write("OK LEAN_RIGHT\n")
+                    print("Leaning right...")
                     
                 else:
                     usb.write("ERROR Unknown command\n")

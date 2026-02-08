@@ -63,6 +63,20 @@ class RobotControllerGUI:
                                 command=self.sit_down, state=tk.DISABLED)
         self.sit_btn.pack(pady=10)
         
+        # Lean buttons frame
+        lean_frame = ttk.Frame(ctrl_frame)
+        lean_frame.pack(pady=10)
+        
+        self.lean_left_btn = tk.Button(lean_frame, text="← Lean Left", font=("Arial", 16, "bold"),
+                                       bg="#9C27B0", fg="white", height=2, width=12,
+                                       command=self.lean_left, state=tk.DISABLED)
+        self.lean_left_btn.pack(side=tk.LEFT, padx=10)
+        
+        self.lean_right_btn = tk.Button(lean_frame, text="Lean Right →", font=("Arial", 16, "bold"),
+                                        bg="#9C27B0", fg="white", height=2, width=12,
+                                        command=self.lean_right, state=tk.DISABLED)
+        self.lean_right_btn.pack(side=tk.LEFT, padx=10)
+        
         # Status
         self.robot_status = ttk.Label(ctrl_frame, text="Robot: Not Ready", 
                                      font=("Arial", 14), foreground="gray")
@@ -144,6 +158,8 @@ class RobotControllerGUI:
         state = tk.NORMAL if self.robot_ready else tk.DISABLED
         self.stand_btn.config(state=state)
         self.sit_btn.config(state=state)
+        self.lean_left_btn.config(state=state)
+        self.lean_right_btn.config(state=state)
     
     def send_command(self, command):
         if not self.serial_port or not self.serial_port.is_open:
@@ -167,6 +183,14 @@ class RobotControllerGUI:
     def sit_down(self):
         self.send_command("SIT")
         self.robot_status.config(text="Robot: Sitting Down...", foreground="orange")
+    
+    def lean_left(self):
+        self.send_command("LEAN_LEFT")
+        self.robot_status.config(text="Robot: Leaning Left", foreground="purple")
+    
+    def lean_right(self):
+        self.send_command("LEAN_RIGHT")
+        self.robot_status.config(text="Robot: Leaning Right", foreground="purple")
     
     def log(self, message):
         self.log_text.config(state=tk.NORMAL)
