@@ -158,20 +158,20 @@ def main(rtc, lcd, sbus_uart, battery_adc):
 if __name__ == '__main__':
     rtc, lcd, sbus_uart, battery_adc = setup()
 
-    front_right_shoulder = Servo(0, 0, 82, 180, False)  # positive is external rotation
-    front_right_leg = Servo(1, 0, 111, 180, False)  # positive is forward
-    front_right_foot = Servo(2, 0, 30, 180, False)  # positive is forward
+    front_right_shoulder = Servo(0, 0, 100, 180, False)
+    front_right_leg = Servo(1, 0, 90, 180, False)
+    front_right_foot = Servo(2, 0, 50, 180, False)
 
-    front_left_shoulder = Servo(4, 0, 97, 180, True)  # positive is internal rotation
-    front_left_leg = Servo(5, 0, 95, 180, True)  # positive is back
-    front_left_foot = Servo(6, 0, 142, 180, True)  # positive is back
+    front_left_shoulder = Servo(4, 0, 80, 180, True)
+    front_left_leg = Servo(5, 0, 90, 180, True)
+    front_left_foot = Servo(6, 0, 125, 180, True)
 
-    rear_right_shoulder = Servo(8, 0, 73, 180, False)
-    rear_right_leg = Servo(9, 0, 84, 180, False)
-    rear_right_foot = Servo(10, 0, 34, 180, False)
+    rear_right_shoulder = Servo(8, 0, 90, 180, False)
+    rear_right_leg = Servo(9, 0, 90, 180, False)
+    rear_right_foot = Servo(10, 0, 50, 180, False)
 
-    rear_left_shoulder = Servo(12, 0, 94, 180, True)
+    rear_left_shoulder = Servo(12, 0, 80, 180, True)
     rear_left_leg = Servo(13, 0, 90, 180, True)
-    rear_left_foot = Servo(14, 0, 140, 180, True)
+    rear_left_foot = Servo(14, 0, 125, 180, True)
 
     main(rtc, lcd, sbus_uart, battery_adc)
