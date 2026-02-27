@@ -9,10 +9,12 @@ class PCA9685:
         self.reset()
 
     def _write(self, address, value):
-        self.i2c.mem_write(bytearray([value]), self.address, address)
+        # ESP32: writeto_mem (thay vì mem_write của PyBoard)
+        self.i2c.writeto_mem(self.address, address, bytearray([value]))
 
     def _read(self, address):
-        return self.i2c.mem_read(1, self.address, address)[0]
+        # ESP32: readfrom_mem (thay vì mem_read của PyBoard)
+        return self.i2c.readfrom_mem(self.address, address, 1)[0]
 
     def reset(self):
         self._write(0x00, 0x00)  # Mode1
@@ -33,7 +35,8 @@ class PCA9685:
             data = self.i2c.readfrom_mem(self.address, 0x06 + 4 * index, 4)
             return ustruct.unpack('<HH', data)
         data = ustruct.pack('<HH', on, off)
-        self.i2c.mem_write(data, self.address, 0x06 + 4 * index)
+        # ESP32: writeto_mem
+        self.i2c.writeto_mem(self.address, 0x06 + 4 * index, data)
 
     def duty(self, index, value=None, invert=False):
         if value is None:
