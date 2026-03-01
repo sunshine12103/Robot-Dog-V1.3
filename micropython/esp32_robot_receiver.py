@@ -114,6 +114,7 @@ class Servo:
         self.center_angle_deg = center_angle_deg
         self.max_angle_deg = max_angle_deg
         self.is_inverted = is_inverted
+        self.last_angle = center_angle_deg  # track last commanded raw angle
 
     @staticmethod
     def get_12_bit_duty_cycle_for_us(position_us):
@@ -133,6 +134,7 @@ class Servo:
         angle_raw = self.center_angle_deg + offset
         if angle_raw < self.min_angle_deg or angle_raw > self.max_angle_deg:
             raise ValueError
+        self.last_angle = round(angle_raw, 1)
         self.pca9685.duty(self.pwm_channel, Servo.get_12_bit_duty_cycle_for_angle(angle_raw))
 
 # ============================================================
@@ -141,19 +143,19 @@ class Servo:
 # ============================================================
 front_right_shoulder = Servo(0,  0, 120, 180, False)
 front_right_leg      = Servo(1,  0, 100, 180, False)
-front_right_foot     = Servo(2,  0,  20, 180, False)
+front_right_foot     = Servo(2,  0,  30, 180, False)
 
 front_left_shoulder  = Servo(4,  0, 100, 180, True)
-front_left_leg       = Servo(5,  0, 105, 180, True)
-front_left_foot      = Servo(6,  0, 137, 180, True)
+front_left_leg       = Servo(5,  0, 100, 180, True)
+front_left_foot      = Servo(6,  0, 132, 180, True)
 
 rear_right_shoulder  = Servo(8,  0, 115, 180, False)
-rear_right_leg       = Servo(9,  0, 100, 180, False)
-rear_right_foot      = Servo(10, 0,  15, 180, False)
+rear_right_leg       = Servo(9,  0, 105, 180, False)
+rear_right_foot      = Servo(10, 0,  20, 180, False)
 
 rear_left_shoulder   = Servo(12, 0, 110, 180, True)
 rear_left_leg        = Servo(13, 0,  65, 180, True)
-rear_left_foot       = Servo(14, 0, 137, 180, True)
+rear_left_foot       = Servo(14, 0, 145, 180, True)
 
 # Profiler + state machine
 profiler = Profiler()
@@ -305,9 +307,10 @@ def handle_line(cmd, reply_fn):
 # ============================================================
 # Main loop
 # ============================================================
-usb_buf       = ""
-last_loop_us  = utime.ticks_us()
+usb_buf        = ""
+last_loop_us   = utime.ticks_us()
 loop_period_us = 19650  # ~50 Hz
+last_angles_ms = utime.ticks_ms()
 
 while True:
     # ---- Read USB serial ----
@@ -363,6 +366,17 @@ while True:
                     servo_commands[i](c)
                 except:
                     pass
+
+    # ---- Broadcast servo angles every ~500ms ----
+    if utime.ticks_diff(utime.ticks_ms(), last_angles_ms) >= 500:
+        last_angles_ms = utime.ticks_ms()
+        vals = ",".join("{}:{}".format(ch, int(servo_by_channel[ch].last_angle))
+                        for ch in sorted(servo_by_channel))
+        msg = "ANGLES {}\n".format(vals)
+        usb.write(msg)
+        if tcp_client:
+            try: tcp_client.send(msg.encode())
+            except: pass
 
     # ---- 50 Hz timing ----
     while utime.ticks_diff(utime.ticks_us(), last_loop_us) < loop_period_us:

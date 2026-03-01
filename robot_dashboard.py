@@ -24,16 +24,16 @@ import os
 SERVO_DEFAULTS = {
     0:  ("FR Shoulder", 120, False),
     1:  ("FR Leg",      100, False),
-    2:  ("FR Foot",      20, False),
+    2:  ("FR Foot",      30, False),
     4:  ("FL Shoulder", 100, True),
     5:  ("FL Leg",      105, True),
-    6:  ("FL Foot",     137, True),
+    6:  ("FL Foot",     132, True),
     8:  ("RR Shoulder", 115, False),
     9:  ("RR Leg",      100, False),
-    10: ("RR Foot",      15, False),
+    10: ("RR Foot",      20, False),
     12: ("RL Shoulder", 110, True),
     13: ("RL Leg",       65, True),
-    14: ("RL Foot",     137, True),
+    14: ("RL Foot",     145, True),
 }
 SERVO_CHANNELS = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
 
@@ -143,11 +143,14 @@ class RobotDashboard:
         self._build_control_panel(left)
         self._build_calib_panel(right)
 
+        # ── Servo angle monitor ──
+        self._build_servo_monitor(self.root)
+
         # ── Log ──
         log_frame = tk.LabelFrame(self.root, text=" Log ", bg=BG2, fg=TEXT_DIM,
                                   font=("Segoe UI", 9), bd=1, relief="groove")
         log_frame.pack(fill=tk.BOTH, expand=False, padx=10, pady=(0,6), ipady=2)
-        self.log = scrolledtext.ScrolledText(log_frame, height=7, bg="#0d0d1a", fg=TEXT,
+        self.log = scrolledtext.ScrolledText(log_frame, height=5, bg="#0d0d1a", fg=TEXT,
                                              font=("Consolas", 9), state=tk.DISABLED, bd=0)
         self.log.pack(fill=tk.BOTH, expand=True)
 
@@ -205,6 +208,57 @@ class RobotDashboard:
         self.robot_status = tk.Label(parent, text="Not Ready", bg=BG, fg=TEXT_DIM,
                                      font=("Segoe UI", 10, "bold"))
         self.robot_status.pack(pady=10)
+
+    def _build_servo_monitor(self, parent):
+        """Live servo angle table: 4 legs × 3 joints = 12 cells."""
+        frame = tk.LabelFrame(parent, text=" 📊 Live Servo Angles (raw deg) ",
+                              bg=BG2, fg=TEXT_DIM, font=("Segoe UI", 9), bd=1, relief="groove")
+        frame.pack(fill=tk.X, padx=10, pady=(0,4))
+
+        cols = ["FR", "FL", "RR", "RL"]
+        rows = ["Shoulder", "Leg", "Foot"]
+        # ch order: Shoulder=[0,4,8,12], Leg=[1,5,9,13], Foot=[2,6,10,14]
+        monitor_channels = [
+            [0, 4,  8, 12],
+            [1, 5,  9, 13],
+            [2, 6, 10, 14],
+        ]
+
+        self._angle_labels = {}  # ch -> tk.Label
+
+        # Header
+        tk.Label(frame, text="", bg=BG2, width=8).grid(row=0, column=0, padx=4)
+        for ci, col in enumerate(cols):
+            tk.Label(frame, text=col, bg=BG2, fg=ACCENT3,
+                     font=("Segoe UI", 9, "bold"), width=8).grid(row=0, column=ci+1, padx=4)
+
+        for ri, (row_name, chs) in enumerate(zip(rows, monitor_channels)):
+            tk.Label(frame, text=row_name, bg=BG2, fg=TEXT_DIM,
+                     font=("Segoe UI", 9), width=8, anchor="w").grid(row=ri+1, column=0, padx=(8,4), pady=2)
+            for ci, ch in enumerate(chs):
+                lbl = tk.Label(frame, text="--", bg="#0d0d1a", fg=TEXT,
+                               font=("Consolas", 10, "bold"), width=8, relief="flat")
+                lbl.grid(row=ri+1, column=ci+1, padx=4, pady=2)
+                self._angle_labels[ch] = lbl
+
+    def _update_angle_monitor(self, line):
+        """Parse ANGLES 0:120,1:100,... and update labels."""
+        data = line[7:]  # strip 'ANGLES '
+        for pair in data.split(","):
+            try:
+                ch_str, val_str = pair.split(":")
+                ch, val = int(ch_str), int(val_str)
+                if ch in self._angle_labels:
+                    lbl = self._angle_labels[ch]
+                    # Color-code: near center=white, far=yellow/red
+                    center = SERVO_DEFAULTS.get(ch, (None, 90))[1]
+                    diff = abs(val - center)
+                    if diff < 15:   color = "#eaeaea"
+                    elif diff < 40: color = "#FFD600"
+                    else:           color = "#FF6B6B"
+                    lbl.config(text=str(val), fg=color)
+            except Exception:
+                pass
 
     def _build_calib_panel(self, parent):
         hdr = tk.Frame(parent, bg=BG2); hdr.pack(fill=tk.X, pady=(0,4))
@@ -376,6 +430,10 @@ class RobotDashboard:
                     line, buf = buf.split("\n", 1)
                     line = line.strip()
                     if not line: continue
+                    if line.startswith("ANGLES "):
+                        # Silent update – don't spam the log
+                        self.root.after(0, lambda l=line: self._update_angle_monitor(l))
+                        continue
                     self._log(f"← {line}")
                     if line == "READY":
                         self.robot_ready = True
