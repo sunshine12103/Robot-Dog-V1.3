@@ -137,7 +137,7 @@ rear_right_foot = Servo(10, 0, 15, 180, False)
 
 rear_left_shoulder = Servo(12, 0, 100, 180, True)
 rear_left_leg = Servo(13, 0, 110, 180, True)
-rear_left_foot = Servo(14, 0, 150, 180, True)
+rear_left_foot = Servo(14, 0, 145, 180, True)
 
 # Profiler + state machine
 profiler = Profiler()
