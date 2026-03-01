@@ -14,6 +14,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 import serial
 import serial.tools.list_ports
+import socket
 import threading
 import time
 import re
@@ -22,17 +23,17 @@ import os
 # ─── Servo definitions (sync with esp32_robot_receiver.py) ───────────────────
 SERVO_DEFAULTS = {
     0:  ("FR Shoulder", 120, False),
-    1:  ("FR Leg",      110, False),
-    2:  ("FR Foot",      30, False),
-    4:  ("FL Shoulder",  90, True),
-    5:  ("FL Leg",       90, True),
-    6:  ("FL Foot",     145, True),
-    8:  ("RR Shoulder", 120, False),
+    1:  ("FR Leg",      100, False),
+    2:  ("FR Foot",      20, False),
+    4:  ("FL Shoulder", 100, True),
+    5:  ("FL Leg",      105, True),
+    6:  ("FL Foot",     137, True),
+    8:  ("RR Shoulder", 115, False),
     9:  ("RR Leg",      100, False),
-    10: ("RR Foot",      30, False),
-    12: ("RL Shoulder",  90, True),
-    13: ("RL Leg",       90, True),
-    14: ("RL Foot",     145, True),
+    10: ("RR Foot",      15, False),
+    12: ("RL Shoulder", 110, True),
+    13: ("RL Leg",       65, True),
+    14: ("RL Foot",     137, True),
 }
 SERVO_CHANNELS = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
 
@@ -62,7 +63,8 @@ class RobotDashboard:
         self.root.configure(bg=BG)
         self.root.resizable(True, True)
 
-        self.serial_port = None
+        self.serial_conn = None   # serial.Serial object
+        self.wifi_conn   = None   # socket object
         self.running     = False
         self.robot_ready = False
 
@@ -85,15 +87,41 @@ class RobotDashboard:
         conn = tk.Frame(self.root, bg=BG2, pady=6)
         conn.pack(fill=tk.X)
 
-        tk.Label(conn, text="COM Port:", bg=BG2, fg=TEXT, font=("Segoe UI", 10)).pack(side=tk.LEFT, padx=(12,4))
-        self.port_var = tk.StringVar()
-        self.port_cb  = ttk.Combobox(conn, textvariable=self.port_var, width=10,
-                                     state="readonly", font=("Segoe UI", 10))
-        self.port_cb.pack(side=tk.LEFT, padx=4)
-        self._refresh_ports()
+        # Mode toggle
+        self.conn_mode = tk.StringVar(value="serial")
+        tk.Radiobutton(conn, text="Serial", variable=self.conn_mode, value="serial",
+                       bg=BG2, fg=TEXT, selectcolor=BG3, activebackground=BG2,
+                       font=("Segoe UI", 9), command=self._on_mode_change).pack(side=tk.LEFT, padx=(10,2))
+        tk.Radiobutton(conn, text="WiFi", variable=self.conn_mode, value="wifi",
+                       bg=BG2, fg=TEXT, selectcolor=BG3, activebackground=BG2,
+                       font=("Segoe UI", 9), command=self._on_mode_change).pack(side=tk.LEFT, padx=(0,8))
 
-        tk.Button(conn, text="⟳", font=("Segoe UI", 10), bg=BG3, fg=TEXT,
+        # Serial widgets
+        self.serial_frame = tk.Frame(conn, bg=BG2)
+        self.serial_frame.pack(side=tk.LEFT)
+        tk.Label(self.serial_frame, text="COM:", bg=BG2, fg=TEXT, font=("Segoe UI", 10)).pack(side=tk.LEFT, padx=(0,4))
+        self.port_var = tk.StringVar()
+        self.port_cb  = ttk.Combobox(self.serial_frame, textvariable=self.port_var, width=9,
+                                     state="readonly", font=("Segoe UI", 10))
+        self.port_cb.pack(side=tk.LEFT, padx=2)
+        self._refresh_ports()
+        tk.Button(self.serial_frame, text="⟳", font=("Segoe UI", 10), bg=BG3, fg=TEXT,
                   command=self._refresh_ports, **BTN_H).pack(side=tk.LEFT, padx=2)
+
+        # WiFi widgets
+        self.wifi_frame = tk.Frame(conn, bg=BG2)
+        tk.Label(self.wifi_frame, text="IP:", bg=BG2, fg=TEXT, font=("Segoe UI", 10)).pack(side=tk.LEFT, padx=(0,4))
+        self.wifi_ip_var   = tk.StringVar(value="192.168.1.")
+        self.wifi_port_var = tk.StringVar(value="8888")
+        tk.Entry(self.wifi_frame, textvariable=self.wifi_ip_var, width=14,
+                 bg="#0d0d1a", fg=TEXT, font=("Consolas", 10), insertbackground=TEXT,
+                 relief="flat").pack(side=tk.LEFT, padx=2)
+        tk.Label(self.wifi_frame, text="Port:", bg=BG2, fg=TEXT, font=("Segoe UI", 10)).pack(side=tk.LEFT, padx=(6,2))
+        tk.Entry(self.wifi_frame, textvariable=self.wifi_port_var, width=6,
+                 bg="#0d0d1a", fg=TEXT, font=("Consolas", 10), insertbackground=TEXT,
+                 relief="flat").pack(side=tk.LEFT, padx=2)
+
+        # Connect button + status
         self.conn_btn = tk.Button(conn, text="Connect", font=("Segoe UI", 10, "bold"),
                                   bg=ACCENT, fg="white", padx=12,
                                   command=self._toggle_connection, **BTN_H)
@@ -258,29 +286,53 @@ class RobotDashboard:
         self.port_cb["values"] = ports
         if ports: self.port_cb.current(0)
 
+    def _on_mode_change(self):
+        if self.conn_mode.get() == "wifi":
+            self.serial_frame.pack_forget()
+            self.wifi_frame.pack(side=tk.LEFT)
+        else:
+            self.wifi_frame.pack_forget()
+            self.serial_frame.pack(side=tk.LEFT)
+
+    def _is_connected(self):
+        return ((self.serial_conn and self.serial_conn.is_open) or
+                (self.wifi_conn is not None))
+
     def _toggle_connection(self):
-        if self.serial_port and self.serial_port.is_open:
+        if self._is_connected():
             self._disconnect()
         else:
             self._connect()
 
     def _connect(self):
-        port = self.port_var.get()
-        if not port:
-            messagebox.showerror("Error", "Please select a COM port")
-            return
+        mode = self.conn_mode.get()
         try:
-            self.serial_port = serial.Serial(port, 115200, timeout=0.1)
-            time.sleep(1.5)
+            if mode == "wifi":
+                ip   = self.wifi_ip_var.get().strip()
+                port = int(self.wifi_port_var.get().strip())
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.settimeout(5)
+                sock.connect((ip, port))
+                sock.settimeout(0.1)
+                self.wifi_conn = sock
+                self._log(f"Connected to {ip}:{port} via WiFi")
+            else:
+                port = self.port_var.get()
+                if not port:
+                    messagebox.showerror("Error", "Please select a COM port")
+                    return
+                self.serial_conn = serial.Serial(port, 115200, timeout=0.1)
+                time.sleep(1.5)
+                self._log(f"Connected to {port} via Serial")
+
             self.status_lbl.config(text="● Connected", fg=ACCENT2)
             self.conn_btn.config(text="Disconnect", bg="#607D8B")
-            self._log(f"Connected to {port}")
             self.running = True
             threading.Thread(target=self._read_loop, daemon=True).start()
-            # Ping ESP32 to re-send READY (in case board booted before connect)
             time.sleep(0.2)
             self._send("PING")
-            # Fallback: enable controls after 3s even if READY not received
+            # Auto-sync calib UI with ESP32 after 1.5s
+            self.root.after(1500, self._get_centers)
             self.root.after(3000, self._fallback_ready)
         except Exception as e:
             messagebox.showerror("Connection Error", str(e))
@@ -292,8 +344,14 @@ class RobotDashboard:
 
     def _disconnect(self):
         self.running = False
-        if self.serial_port and self.serial_port.is_open:
-            self.serial_port.close()
+        if self.serial_conn and self.serial_conn.is_open:
+            self.serial_conn.close()
+            self.serial_conn = None
+        if self.wifi_conn:
+            try: self.wifi_conn.close()
+            except: pass
+            self.wifi_conn = None
+        self.robot_ready = False
         self.status_lbl.config(text="● Disconnected", fg=ACCENT)
         self.conn_btn.config(text="Connect", bg=ACCENT)
         self._set_controls_state(False)
@@ -301,10 +359,19 @@ class RobotDashboard:
 
     def _read_loop(self):
         buf = ""
-        while self.running and self.serial_port and self.serial_port.is_open:
+        while self.running:
             try:
-                if self.serial_port.in_waiting:
-                    buf += self.serial_port.read(self.serial_port.in_waiting).decode("utf-8", "ignore")
+                data = b""
+                if self.serial_conn and self.serial_conn.is_open:
+                    if self.serial_conn.in_waiting:
+                        data = self.serial_conn.read(self.serial_conn.in_waiting)
+                elif self.wifi_conn:
+                    try: data = self.wifi_conn.recv(512)
+                    except socket.timeout: pass
+                    except OSError: break
+
+                if data:
+                    buf += data.decode("utf-8", "ignore")
                 while "\n" in buf:
                     line, buf = buf.split("\n", 1)
                     line = line.strip()
@@ -313,6 +380,8 @@ class RobotDashboard:
                     if line == "READY":
                         self.robot_ready = True
                         self.root.after(0, self._on_ready)
+                    elif line.startswith("WIFI_READY "):
+                        self._log(f"ESP32 WiFi ready at {line[11:]}")
                     elif line.startswith("CENTERS "):
                         self.root.after(0, lambda l=line: self._parse_centers(l))
             except Exception:
@@ -325,10 +394,14 @@ class RobotDashboard:
 
     # ─── Commands ────────────────────────────────────────────────────────────
     def _send(self, cmd):
-        if not self.serial_port or not self.serial_port.is_open:
+        if not self._is_connected():
             self._log("Not connected"); return
         try:
-            self.serial_port.write((cmd + "\n").encode())
+            payload = (cmd + "\n").encode()
+            if self.serial_conn and self.serial_conn.is_open:
+                self.serial_conn.write(payload)
+            elif self.wifi_conn:
+                self.wifi_conn.sendall(payload)
             self._log(f"→ {cmd}")
         except Exception as e:
             self._log(f"Send error: {e}")

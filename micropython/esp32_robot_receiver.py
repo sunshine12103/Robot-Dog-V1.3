@@ -1,42 +1,33 @@
 """
-SpotMicro Robot Controller - ESP32-S3 Receiver
-Port of PyBoard robot_receiver.py for ESP32-S3
+SpotMicro Robot Controller - ESP32-S3 Receiver (WiFi + USB)
 
-Changes from PyBoard:
-  - pyb.USB_VCP  → sys.stdin/stdout (USB serial via REPL)
-  - pyb.I2C      → machine.I2C with explicit pins
-  - pyb.delay    → utime.sleep_ms
-
-Wiring ESP32-S3 → PCA9685:
-  GPIO 8  → SDA
-  GPIO 9  → SCL
-  3.3V    → VCC
-  GND     → GND
-
-Commands (same as before):
-  STAND, SIT,
-  LEAN_LEFT, LEAN_CENTER, LEAN_RIGHT,
-  WALK_FORWARD, WALK_CENTER, WALK_BACKWARD,
-  CRAWL_LEFT, CRAWL_STOP, CRAWL_RIGHT
+Commands: STAND, SIT, LEAN_LEFT/CENTER/RIGHT,
+          WALK_FORWARD/CENTER/BACKWARD, CRAWL_LEFT/STOP/RIGHT
+Calib:    RAW:ch:angle, CALIB:ch:center, SAVE_HOME, GET_CENTERS, PING
+WiFi:     TCP port 8888 (same command format as USB serial)
 """
 
 import utime
 import sys
+import select
+import network
+import socket
 from machine import I2C, Pin
 from pca9685 import PCA9685
 from profiler import Profiler
 from state import StateMachine
 
 # ============================================================
-# USB Serial - dùng sys.stdin/stdout (USB CDC REPL trên ESP32-S3)
-# UART(0) bị REPL chiếm nên dùng sys.stdin/stdout thay thế
+# WiFi config
 # ============================================================
-import sys
-import select
+WIFI_SSID = "Tuan Kiet"
+WIFI_PASS = "Kiet0708"
+TCP_PORT  = 8888
 
+# ============================================================
+# USB Serial (sys.stdin/stdout - USB CDC REPL on ESP32-S3)
+# ============================================================
 class UsbSerial:
-    """Uses sys.stdin/stdout (USB CDC REPL) on ESP32-S3."""
-
     def write(self, data):
         if isinstance(data, bytes):
             data = data.decode('utf-8', 'ignore')
@@ -47,7 +38,6 @@ class UsbSerial:
         return bool(r)
 
     def read(self, n=64):
-        """Non-blocking: doc tung char mot, tranh bi block khi chua du n bytes."""
         result = b''
         for _ in range(n):
             r, _, _ = select.select([sys.stdin], [], [], 0)
@@ -59,16 +49,42 @@ class UsbSerial:
         return result
 
 # ============================================================
+# WiFi + TCP Server
+# ============================================================
+def connect_wifi(ssid, password, timeout_ms=30000):
+    sta = network.WLAN(network.STA_IF)
+    sta.active(True)
+    if not sta.isconnected():
+        print("Connecting to WiFi:", ssid)
+        sta.connect(ssid, password)
+        t0 = utime.ticks_ms()
+        while not sta.isconnected():
+            if utime.ticks_diff(utime.ticks_ms(), t0) > timeout_ms:
+                print("WiFi timeout!")
+                return None
+            utime.sleep_ms(200)
+    ip = sta.ifconfig()[0]
+    print("WIFI IP:", ip)
+    return ip
+
+def make_tcp_server(port):
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    srv.bind(('', port))
+    srv.listen(1)
+    srv.setblocking(False)
+    print("TCP server listening on port", port)
+    return srv
+
+# ============================================================
 # Hardware init
 # ============================================================
 print("Initializing hardware...")
 
-# I2C - thay đổi GPIO nếu mày dùng pin khác
 I2C_SDA = 8
 I2C_SCL = 9
 i2c = I2C(0, scl=Pin(I2C_SCL), sda=Pin(I2C_SDA), freq=400000)
 
-# Scan I2C để verify PCA9685
 devices = i2c.scan()
 print("I2C devices:", [hex(d) for d in devices])
 if 0x40 not in devices:
@@ -79,7 +95,7 @@ pca.freq(50)
 print("PCA9685 ready")
 
 # ============================================================
-# Servo class (không đổi)
+# Servo class
 # ============================================================
 class Servo:
     us_min_cmd = 500.0
@@ -119,34 +135,34 @@ class Servo:
             raise ValueError
         self.pca9685.duty(self.pwm_channel, Servo.get_12_bit_duty_cycle_for_angle(angle_raw))
 
-# Servo initialization - Calibrated angles (from servo_calibration_gui.py)
-# NOTE: Foot servo centers MUST be low (non-inverted ~30) or high (inverted ~145)
-# because IK outputs foot_angle ~100-150 deg for normal stance.
-# If center too high (non-inv) or too low (inv) -> angle_raw out of [0,180] -> ValueError
-front_right_shoulder = Servo(0, 0, 120, 180, False)
-front_right_leg = Servo(1, 0, 100, 180, False)
-front_right_foot = Servo(2, 0, 20, 180, False)
+# ============================================================
+# Servo initialization (calibrated center angles)
+# NOTE: Foot centers: non-inv ~20-30, inv ~135-145 (IK constraint)
+# ============================================================
+front_right_shoulder = Servo(0,  0, 120, 180, False)
+front_right_leg      = Servo(1,  0, 100, 180, False)
+front_right_foot     = Servo(2,  0,  20, 180, False)
 
-front_left_shoulder = Servo(4, 0, 100, 180, True)
-front_left_leg = Servo(5, 0, 105, 180, True)
-front_left_foot = Servo(6, 0, 137, 180, True)
+front_left_shoulder  = Servo(4,  0, 100, 180, True)
+front_left_leg       = Servo(5,  0, 105, 180, True)
+front_left_foot      = Servo(6,  0, 137, 180, True)
 
-rear_right_shoulder = Servo(8, 0, 115, 180, False)
-rear_right_leg = Servo(9, 0, 100, 180, False)
-rear_right_foot = Servo(10, 0, 15, 180, False)
+rear_right_shoulder  = Servo(8,  0, 115, 180, False)
+rear_right_leg       = Servo(9,  0, 100, 180, False)
+rear_right_foot      = Servo(10, 0,  15, 180, False)
 
-rear_left_shoulder = Servo(12, 0, 100, 180, True)
-rear_left_leg = Servo(13, 0, 110, 180, True)
-rear_left_foot = Servo(14, 0, 145, 180, True)
+rear_left_shoulder   = Servo(12, 0, 110, 180, True)
+rear_left_leg        = Servo(13, 0,  65, 180, True)
+rear_left_foot       = Servo(14, 0, 137, 180, True)
 
 # Profiler + state machine
 profiler = Profiler()
 state_machine = StateMachine()
 
-# USB serial
+# USB serial instance
 usb = UsbSerial()
 
-# Servo command list (thu tu phai khop voi profiler.get_position_commands())
+# Servo command list (order matches profiler.get_position_commands())
 servo_commands = [
     front_right_shoulder.command_deg, front_left_shoulder.command_deg,
     front_right_leg.command_deg,      front_left_leg.command_deg,
@@ -156,172 +172,186 @@ servo_commands = [
     rear_right_foot.command_deg,      rear_left_foot.command_deg,
 ]
 
-# Dict truy cap servo theo channel - dung cho lenh CALIB va RAW
+# Dict for runtime servo access by channel
 servo_by_channel = {
-    0: front_right_shoulder, 1: front_right_leg,  2: front_right_foot,
-    4: front_left_shoulder,  5: front_left_leg,   6: front_left_foot,
-    8: rear_right_shoulder,  9: rear_right_leg,  10: rear_right_foot,
-   12: rear_left_shoulder,  13: rear_left_leg,   14: rear_left_foot,
+     0: front_right_shoulder,  1: front_right_leg,   2: front_right_foot,
+     4: front_left_shoulder,   5: front_left_leg,    6: front_left_foot,
+     8: rear_right_shoulder,   9: rear_right_leg,   10: rear_right_foot,
+    12: rear_left_shoulder,   13: rear_left_leg,    14: rear_left_foot,
 }
 
 def angle_to_duty_raw(angle):
-    """Convert raw angle (0-180) to 12-bit duty cycle."""
     angle = max(0, min(180, angle))
     pulse = 500 + (angle / 180.0) * 2000
     return int((pulse / 20000) * 4095)
 
+# ============================================================
+# Ready
+# ============================================================
 print("Ready for PC control commands")
 usb.write("READY\n")
 
+# WiFi + TCP server
+wifi_ip = connect_wifi(WIFI_SSID, WIFI_PASS)
+tcp_server = None
+tcp_client = None
+tcp_buf    = ""
+if wifi_ip:
+    tcp_server = make_tcp_server(TCP_PORT)
+    usb.write("WIFI_READY {}:{}\n".format(wifi_ip, TCP_PORT))
+else:
+    usb.write("WIFI_FAIL\n")
+
 # ============================================================
-# Crawl state
+# Crawl / state tracking
 # ============================================================
-crawl_mode = 0       # 0=stop, 1=left, 2=right
+crawl_mode        = 0
 crawl_rc_channels = None
-
-# rc_channels hien tai - duoc giu nguyen va feed vao state_machine moi loop
-# Quan trong: state machine can duoc update lien tuc (TURNING_SERVOS_ON mat ~2s)
 current_rc_channels = None
-
-# calib_mode = True khi dang dung RAW command de calib
-# -> tam dung state_machine va profiler de khong ghi de len servo
-calib_mode = False
+calib_mode        = False
 
 # ============================================================
-# Main control loop
+# Command handler (shared by USB and WiFi)
 # ============================================================
-buffer = ""
-last_loop_us = utime.ticks_us()
-loop_period_us = 19650  # ~50Hz
+def handle_line(cmd, reply_fn):
+    global current_rc_channels, crawl_mode, crawl_rc_channels, calib_mode
+    if not cmd:
+        return
+    try:
+        if cmd == "STAND":
+            current_rc_channels = [980,980,980,980,980,980,1580,1000]+[980]*8
+            crawl_mode = 0; calib_mode = False
+            reply_fn("OK STAND\n")
+
+        elif cmd == "SIT":
+            current_rc_channels = [980,980,980,980,980,980,1580,180]+[980]*8
+            crawl_mode = 0; calib_mode = False
+            reply_fn("OK SIT\n")
+
+        elif cmd == "LEAN_LEFT":
+            current_rc_channels = [980,1380,980,980,980,980,1580,1000]+[980]*8
+            crawl_mode = 0; reply_fn("OK LEAN_LEFT\n")
+
+        elif cmd == "LEAN_CENTER":
+            current_rc_channels = [980,980,980,980,980,980,1580,1000]+[980]*8
+            crawl_mode = 0; reply_fn("OK LEAN_CENTER\n")
+
+        elif cmd == "LEAN_RIGHT":
+            current_rc_channels = [980,580,980,980,980,980,1580,1000]+[980]*8
+            crawl_mode = 0; reply_fn("OK LEAN_RIGHT\n")
+
+        elif cmd == "WALK_FORWARD":
+            current_rc_channels = [1380,980,980,980,980,980,1580,1000]+[980]*8
+            crawl_mode = 0; reply_fn("OK WALK_FORWARD\n")
+
+        elif cmd == "WALK_CENTER":
+            current_rc_channels = [980,980,980,980,980,980,1580,1000]+[980]*8
+            crawl_mode = 0; reply_fn("OK WALK_CENTER\n")
+
+        elif cmd == "WALK_BACKWARD":
+            current_rc_channels = [580,980,980,980,980,980,1580,1000]+[980]*8
+            crawl_mode = 0; reply_fn("OK WALK_BACKWARD\n")
+
+        elif cmd == "CRAWL_LEFT":
+            crawl_mode = 1
+            crawl_rc_channels = [1380,980,980,980,980,980,1580,1580]+[980]*8
+            current_rc_channels = crawl_rc_channels
+            reply_fn("OK CRAWL_LEFT\n")
+
+        elif cmd == "CRAWL_STOP":
+            crawl_mode = 0; crawl_rc_channels = None
+            current_rc_channels = [980,980,980,980,980,980,1580,1000]+[980]*8
+            reply_fn("OK CRAWL_STOP\n")
+
+        elif cmd == "CRAWL_RIGHT":
+            crawl_mode = 2
+            crawl_rc_channels = [580,980,980,980,980,980,1580,1580]+[980]*8
+            current_rc_channels = crawl_rc_channels
+            reply_fn("OK CRAWL_RIGHT\n")
+
+        elif cmd.startswith("RAW:"):
+            parts = cmd[4:].split(':')
+            ch = int(parts[0]); angle = int(parts[1])
+            calib_mode = True
+            pca.duty(ch, angle_to_duty_raw(angle))
+            reply_fn("OK RAW {}:{}\n".format(ch, angle))
+
+        elif cmd.startswith("CALIB:"):
+            parts = cmd[6:].split(':')
+            ch = int(parts[0]); center = int(parts[1])
+            if ch in servo_by_channel:
+                servo_by_channel[ch].center_angle_deg = center
+                reply_fn("OK CALIB {}:{}\n".format(ch, center))
+            else:
+                reply_fn("ERROR Invalid channel\n")
+
+        elif cmd == "SAVE_HOME":
+            reply_fn("OK SAVE_HOME\n")
+
+        elif cmd == "GET_CENTERS":
+            vals = ",".join("{}:{}".format(ch, servo_by_channel[ch].center_angle_deg)
+                           for ch in sorted(servo_by_channel))
+            reply_fn("CENTERS {}\n".format(vals))
+
+        elif cmd == "PING":
+            reply_fn("READY\n")
+
+        else:
+            reply_fn("ERROR Unknown command\n")
+
+    except Exception as e:
+        reply_fn("ERROR {}\n".format(str(e)))
+
+# ============================================================
+# Main loop
+# ============================================================
+usb_buf       = ""
+last_loop_us  = utime.ticks_us()
+loop_period_us = 19650  # ~50 Hz
 
 while True:
-    # ---- Read incoming commands ----
+    # ---- Read USB serial ----
     if usb.any():
         try:
             data = usb.read(64)
             if data:
-                buffer += data.decode('utf-8', 'ignore')
+                usb_buf += data.decode('utf-8', 'ignore')
         except:
             pass
+    while '\n' in usb_buf:
+        line, usb_buf = usb_buf.split('\n', 1)
+        handle_line(line.strip(), usb.write)
 
-        while '\n' in buffer:
-            line, buffer = buffer.split('\n', 1)
-            cmd = line.strip()
+    # ---- Accept new TCP client ----
+    if tcp_server and tcp_client is None:
+        try:
+            tcp_client, _ = tcp_server.accept()
+            tcp_client.setblocking(False)
+            tcp_buf = ""
+            usb.write("TCP CLIENT CONNECTED\n")
+            tcp_client.send(b"READY\n")
+        except OSError:
+            pass
 
-            if not cmd:
-                continue
+    # ---- Read TCP client ----
+    if tcp_client:
+        try:
+            chunk = tcp_client.recv(256)
+            if chunk:
+                tcp_buf += chunk.decode('utf-8', 'ignore')
+                while '\n' in tcp_buf:
+                    line, tcp_buf = tcp_buf.split('\n', 1)
+                    def tcp_reply(msg, c=tcp_client):
+                        try: c.send(msg.encode())
+                        except: pass
+                    handle_line(line.strip(), tcp_reply)
+            else:
+                tcp_client.close(); tcp_client = None
+                usb.write("TCP CLIENT DISCONNECTED\n")
+        except OSError:
+            pass
 
-            try:
-                if cmd == "STAND":
-                    # arm (rc[6]>500) + stand (rc[7]=1000>500)
-                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    crawl_mode = 0
-                    calib_mode = False   # thoat khoi calib mode
-                    usb.write("OK STAND\n")
-                    print("Standing up...")
-
-                elif cmd == "SIT":
-                    # arm (rc[6]>500) + sit (rc[7]=180<500)
-                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 180] + [980] * 8
-                    crawl_mode = 0
-                    calib_mode = False   # thoat khoi calib mode
-                    usb.write("OK SIT\n")
-                    print("Sitting down...")
-
-                elif cmd == "LEAN_LEFT":
-                    current_rc_channels = [980, 1380, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    crawl_mode = 0
-                    usb.write("OK LEAN_LEFT\n")
-
-                elif cmd == "LEAN_CENTER":
-                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    crawl_mode = 0
-                    usb.write("OK LEAN_CENTER\n")
-
-                elif cmd == "LEAN_RIGHT":
-                    current_rc_channels = [980, 580, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    crawl_mode = 0
-                    usb.write("OK LEAN_RIGHT\n")
-
-                elif cmd == "WALK_FORWARD":
-                    current_rc_channels = [1380, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    crawl_mode = 0
-                    usb.write("OK WALK_FORWARD\n")
-
-                elif cmd == "WALK_CENTER":
-                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    crawl_mode = 0
-                    usb.write("OK WALK_CENTER\n")
-
-                elif cmd == "WALK_BACKWARD":
-                    current_rc_channels = [580, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    crawl_mode = 0
-                    usb.write("OK WALK_BACKWARD\n")
-
-                elif cmd == "CRAWL_LEFT":
-                    crawl_mode = 1
-                    crawl_rc_channels = [1380, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
-                    current_rc_channels = crawl_rc_channels
-                    usb.write("OK CRAWL_LEFT\n")
-                    print("Crawling left...")
-
-                elif cmd == "CRAWL_STOP":
-                    crawl_mode = 0
-                    crawl_rc_channels = None
-                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    usb.write("OK CRAWL_STOP\n")
-                    print("Stopping crawl...")
-
-                elif cmd == "CRAWL_RIGHT":
-                    crawl_mode = 2
-                    crawl_rc_channels = [580, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
-                    current_rc_channels = crawl_rc_channels
-                    usb.write("OK CRAWL_RIGHT\n")
-                    print("Crawling right...")
-
-                # ---- Calibration commands ----
-                elif cmd.startswith("RAW:"):
-                    # RAW:ch:angle - set raw PWM truc tiep, tam dung state machine
-                    parts = cmd[4:].split(':')
-                    ch = int(parts[0])
-                    angle = int(parts[1])
-                    calib_mode = True    # tam dung loop ghi de
-                    pca.duty(ch, angle_to_duty_raw(angle))
-                    usb.write("OK RAW {}:{}\n".format(ch, angle))
-
-                elif cmd.startswith("CALIB:"):
-                    # CALIB:ch:center - cap nhat center angle cua servo
-                    parts = cmd[6:].split(':')
-                    ch = int(parts[0])
-                    center = int(parts[1])
-                    if ch in servo_by_channel:
-                        servo_by_channel[ch].center_angle_deg = center
-                        usb.write("OK CALIB {}:{}\n".format(ch, center))
-                        print("Servo {} center -> {}".format(ch, center))
-                    else:
-                        usb.write("ERROR Invalid channel\n")
-
-                elif cmd == "SAVE_HOME":
-                    usb.write("OK SAVE_HOME\n")
-                    print("Home saved (RAM only, upload new file to persist)")
-
-                elif cmd == "GET_CENTERS":
-                    # Tra ve tat ca center angles hien tai
-                    vals = ",".join("{}:{}".format(ch, servo_by_channel[ch].center_angle_deg)
-                                   for ch in sorted(servo_by_channel))
-                    usb.write("CENTERS {}\n".format(vals))
-
-                elif cmd == "PING":
-                    # Dashboard gui PING sau khi connect de kich hoat lai READY
-                    usb.write("READY\n")
-
-                else:
-                    usb.write("ERROR Unknown command\n")
-
-            except Exception as e:
-                usb.write("ERROR {}\n".format(str(e)))
-
-    # ---- Update state machine + profiler (chi khi KHONG o calib_mode) ----
+    # ---- State machine + servos (pause when in calib_mode) ----
     if not calib_mode:
         if current_rc_channels is not None:
             state_machine.update(profiler, current_rc_channels, last_loop_us)
@@ -334,7 +364,7 @@ while True:
                 except:
                     pass
 
-    # ---- Timing: 50Hz loop ----
+    # ---- 50 Hz timing ----
     while utime.ticks_diff(utime.ticks_us(), last_loop_us) < loop_period_us:
         pass
     last_loop_us = utime.ticks_us()

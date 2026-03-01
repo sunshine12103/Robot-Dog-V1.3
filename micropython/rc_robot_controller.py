@@ -36,7 +36,6 @@ def setup_rc():
         ExtInt(pin, ExtInt.IRQ_RISING_FALLING, Pin.PULL_UP, callback)
     print("RC PWM Reader ready")
 
-# ============== HARDWARE INIT ==============
 print("Initializing hardware...")
 i2c = I2C(1, I2C.MASTER)
 

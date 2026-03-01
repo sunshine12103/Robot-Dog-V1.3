@@ -11,7 +11,7 @@ def crawl(profiler, crawl_velocity: float, sub_state: int) -> int:
     :return: Next sub_state.
     """
     if profiler.get_motion_complete():
-        leg_z = 155
+        leg_z = 145
         if sub_state == 0:  # if not crawling
             if crawl_velocity < 0:  # and commanded to craw forward
                 sub_state += 1
@@ -27,9 +27,9 @@ def crawl(profiler, crawl_velocity: float, sub_state: int) -> int:
                 )
         else:  # if crawling
             leg_y_step = 110
-            body_y_step = 54
+            body_y_step =  57
             leg_z_step = 55          
-            left_leg_z_step = 70       
+            left_leg_z_step = 55       
 
             step_velocity_max = 30.0
             step_acceleration = 5.0
