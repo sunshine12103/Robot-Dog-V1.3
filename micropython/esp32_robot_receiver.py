@@ -28,27 +28,35 @@ from profiler import Profiler
 from state import StateMachine
 
 # ============================================================
-# USB Serial - dùng UART(0) cho ESP32-S3
-# UART(0) là cổng USB-Serial mặc định trên ESP32
+# USB Serial - dùng sys.stdin/stdout (USB CDC REPL trên ESP32-S3)
+# UART(0) bị REPL chiếm nên dùng sys.stdin/stdout thay thế
 # ============================================================
-from machine import UART
+import sys
+import select
 
 class UsbSerial:
-    """Uses UART(0) for USB serial on ESP32-S3 (replaces PyBoard USB_VCP)"""
-    def __init__(self):
-        # timeout=0 = non-blocking read
-        self._uart = UART(0, baudrate=115200, timeout=0)
+    """Uses sys.stdin/stdout (USB CDC REPL) on ESP32-S3."""
 
     def write(self, data):
-        if isinstance(data, str):
-            data = data.encode()
-        self._uart.write(data)
+        if isinstance(data, bytes):
+            data = data.decode('utf-8', 'ignore')
+        sys.stdout.write(data)
 
     def any(self):
-        return self._uart.any()
+        r, _, _ = select.select([sys.stdin], [], [], 0)
+        return bool(r)
 
     def read(self, n=64):
-        return self._uart.read(n)
+        """Non-blocking: doc tung char mot, tranh bi block khi chua du n bytes."""
+        result = b''
+        for _ in range(n):
+            r, _, _ = select.select([sys.stdin], [], [], 0)
+            if not r:
+                break
+            ch = sys.stdin.read(1)
+            if ch:
+                result += ch.encode()
+        return result
 
 # ============================================================
 # Hardware init
@@ -111,24 +119,25 @@ class Servo:
             raise ValueError
         self.pca9685.duty(self.pwm_channel, Servo.get_12_bit_duty_cycle_for_angle(angle_raw))
 
-# ============================================================
-# Servo initialization (calibrated angles - chỉnh tại đây)
-# ============================================================
-front_right_shoulder = Servo(0,  0, 100, 180, False)
-front_right_leg      = Servo(1,  0, 100, 180, False)
-front_right_foot     = Servo(2,  0,  30, 180, False)
+# Servo initialization - Calibrated angles (from servo_calibration_gui.py)
+# NOTE: Foot servo centers MUST be low (non-inverted ~30) or high (inverted ~145)
+# because IK outputs foot_angle ~100-150 deg for normal stance.
+# If center too high (non-inv) or too low (inv) -> angle_raw out of [0,180] -> ValueError
+front_right_shoulder = Servo(0, 0, 120, 180, False)
+front_right_leg = Servo(1, 0, 110, 180, False)
+front_right_foot = Servo(2, 0, 30, 180, False)
 
-front_left_shoulder  = Servo(4,  0,  80, 180, True)
-front_left_leg       = Servo(5,  0,  80, 180, True)
-front_left_foot      = Servo(6,  0, 145, 180, True)
+front_left_shoulder = Servo(4, 0, 90, 180, True)
+front_left_leg = Servo(5, 0, 90, 180, True)
+front_left_foot = Servo(6, 0, 145, 180, True)
 
-rear_right_shoulder  = Servo(8,  0,  90, 180, False)
-rear_right_leg       = Servo(9,  0,  90, 180, False)
-rear_right_foot      = Servo(10, 0,  30, 180, False)
+rear_right_shoulder = Servo(8, 0, 120, 180, False)
+rear_right_leg = Servo(9, 0, 100, 180, False)
+rear_right_foot = Servo(10, 0, 30, 180, False)
 
-rear_left_shoulder   = Servo(12, 0,  80, 180, True)
-rear_left_leg        = Servo(13, 0,  85, 180, True)
-rear_left_foot       = Servo(14, 0, 145, 180, True)
+rear_left_shoulder = Servo(12, 0, 90, 180, True)
+rear_left_leg = Servo(13, 0, 90, 180, True)
+rear_left_foot = Servo(14, 0, 145, 180, True)
 
 # Profiler + state machine
 profiler = Profiler()
@@ -156,6 +165,10 @@ usb.write("READY\n")
 crawl_mode = 0       # 0=stop, 1=left, 2=right
 crawl_rc_channels = None
 
+# rc_channels hien tai - duoc giu nguyen va feed vao state_machine moi loop
+# Quan trong: state machine can duoc update lien tuc (TURNING_SERVOS_ON mat ~2s)
+current_rc_channels = None
+
 # ============================================================
 # Main control loop
 # ============================================================
@@ -182,64 +195,67 @@ while True:
 
             try:
                 if cmd == "STAND":
-                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    # arm (rc[6]>500) + stand (rc[7]=1000>500)
+                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    crawl_mode = 0
                     usb.write("OK STAND\n")
                     print("Standing up...")
 
                 elif cmd == "SIT":
-                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 180] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    # arm (rc[6]>500) + sit (rc[7]=180<500)
+                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 180] + [980] * 8
+                    crawl_mode = 0
                     usb.write("OK SIT\n")
                     print("Sitting down...")
 
                 elif cmd == "LEAN_LEFT":
-                    rc_channels = [980, 1380, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    current_rc_channels = [980, 1380, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    crawl_mode = 0
                     usb.write("OK LEAN_LEFT\n")
 
                 elif cmd == "LEAN_CENTER":
-                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    crawl_mode = 0
                     usb.write("OK LEAN_CENTER\n")
 
                 elif cmd == "LEAN_RIGHT":
-                    rc_channels = [980, 580, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    current_rc_channels = [980, 580, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    crawl_mode = 0
                     usb.write("OK LEAN_RIGHT\n")
 
                 elif cmd == "WALK_FORWARD":
-                    rc_channels = [1380, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    current_rc_channels = [1380, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    crawl_mode = 0
                     usb.write("OK WALK_FORWARD\n")
 
                 elif cmd == "WALK_CENTER":
-                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    crawl_mode = 0
                     usb.write("OK WALK_CENTER\n")
 
                 elif cmd == "WALK_BACKWARD":
-                    rc_channels = [580, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    current_rc_channels = [580, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
+                    crawl_mode = 0
                     usb.write("OK WALK_BACKWARD\n")
 
                 elif cmd == "CRAWL_LEFT":
                     crawl_mode = 1
                     crawl_rc_channels = [1380, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
+                    current_rc_channels = crawl_rc_channels
                     usb.write("OK CRAWL_LEFT\n")
                     print("Crawling left...")
 
                 elif cmd == "CRAWL_STOP":
                     crawl_mode = 0
                     crawl_rc_channels = None
-                    rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
-                    state_machine.update(profiler, rc_channels, last_loop_us)
+                    current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
                     usb.write("OK CRAWL_STOP\n")
                     print("Stopping crawl...")
 
                 elif cmd == "CRAWL_RIGHT":
                     crawl_mode = 2
                     crawl_rc_channels = [580, 980, 980, 980, 980, 980, 1580, 1580] + [980] * 8
+                    current_rc_channels = crawl_rc_channels
                     usb.write("OK CRAWL_RIGHT\n")
                     print("Crawling right...")
 
@@ -249,9 +265,11 @@ while True:
             except Exception as e:
                 usb.write("ERROR {}\n".format(str(e)))
 
-    # ---- Continue crawling ----
-    if crawl_mode != 0 and crawl_rc_channels is not None:
-        state_machine.update(profiler, crawl_rc_channels, last_loop_us)
+    # ---- Update state machine moi loop (QUAN TRONG!) ----
+    # State machine can duoc goi lien tuc de xu ly cac transition mat thoi gian
+    # (vi du: TURNING_SERVOS_ON doi ~2s truoc khi chuyen sang DOWN)
+    if current_rc_channels is not None:
+        state_machine.update(profiler, current_rc_channels, last_loop_us)
 
     # ---- Update profiler + servos ----
     profiler.tick()
