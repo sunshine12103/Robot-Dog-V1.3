@@ -124,20 +124,20 @@ class Servo:
 # because IK outputs foot_angle ~100-150 deg for normal stance.
 # If center too high (non-inv) or too low (inv) -> angle_raw out of [0,180] -> ValueError
 front_right_shoulder = Servo(0, 0, 120, 180, False)
-front_right_leg = Servo(1, 0, 110, 180, False)
-front_right_foot = Servo(2, 0, 30, 180, False)
+front_right_leg = Servo(1, 0, 100, 180, False)
+front_right_foot = Servo(2, 0, 20, 180, False)
 
-front_left_shoulder = Servo(4, 0, 90, 180, True)
-front_left_leg = Servo(5, 0, 90, 180, True)
-front_left_foot = Servo(6, 0, 145, 180, True)
+front_left_shoulder = Servo(4, 0, 100, 180, True)
+front_left_leg = Servo(5, 0, 105, 180, True)
+front_left_foot = Servo(6, 0, 137, 180, True)
 
-rear_right_shoulder = Servo(8, 0, 120, 180, False)
+rear_right_shoulder = Servo(8, 0, 115, 180, False)
 rear_right_leg = Servo(9, 0, 100, 180, False)
-rear_right_foot = Servo(10, 0, 30, 180, False)
+rear_right_foot = Servo(10, 0, 15, 180, False)
 
-rear_left_shoulder = Servo(12, 0, 90, 180, True)
-rear_left_leg = Servo(13, 0, 90, 180, True)
-rear_left_foot = Servo(14, 0, 145, 180, True)
+rear_left_shoulder = Servo(12, 0, 100, 180, True)
+rear_left_leg = Servo(13, 0, 110, 180, True)
+rear_left_foot = Servo(14, 0, 150, 180, True)
 
 # Profiler + state machine
 profiler = Profiler()
@@ -146,7 +146,7 @@ state_machine = StateMachine()
 # USB serial
 usb = UsbSerial()
 
-# Servo command list (thứ tự phải khớp với profiler.get_position_commands())
+# Servo command list (thu tu phai khop voi profiler.get_position_commands())
 servo_commands = [
     front_right_shoulder.command_deg, front_left_shoulder.command_deg,
     front_right_leg.command_deg,      front_left_leg.command_deg,
@@ -155,6 +155,20 @@ servo_commands = [
     rear_right_leg.command_deg,       rear_left_leg.command_deg,
     rear_right_foot.command_deg,      rear_left_foot.command_deg,
 ]
+
+# Dict truy cap servo theo channel - dung cho lenh CALIB va RAW
+servo_by_channel = {
+    0: front_right_shoulder, 1: front_right_leg,  2: front_right_foot,
+    4: front_left_shoulder,  5: front_left_leg,   6: front_left_foot,
+    8: rear_right_shoulder,  9: rear_right_leg,  10: rear_right_foot,
+   12: rear_left_shoulder,  13: rear_left_leg,   14: rear_left_foot,
+}
+
+def angle_to_duty_raw(angle):
+    """Convert raw angle (0-180) to 12-bit duty cycle."""
+    angle = max(0, min(180, angle))
+    pulse = 500 + (angle / 180.0) * 2000
+    return int((pulse / 20000) * 4095)
 
 print("Ready for PC control commands")
 usb.write("READY\n")
@@ -168,6 +182,10 @@ crawl_rc_channels = None
 # rc_channels hien tai - duoc giu nguyen va feed vao state_machine moi loop
 # Quan trong: state machine can duoc update lien tuc (TURNING_SERVOS_ON mat ~2s)
 current_rc_channels = None
+
+# calib_mode = True khi dang dung RAW command de calib
+# -> tam dung state_machine va profiler de khong ghi de len servo
+calib_mode = False
 
 # ============================================================
 # Main control loop
@@ -198,6 +216,7 @@ while True:
                     # arm (rc[6]>500) + stand (rc[7]=1000>500)
                     current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 1000] + [980] * 8
                     crawl_mode = 0
+                    calib_mode = False   # thoat khoi calib mode
                     usb.write("OK STAND\n")
                     print("Standing up...")
 
@@ -205,6 +224,7 @@ while True:
                     # arm (rc[6]>500) + sit (rc[7]=180<500)
                     current_rc_channels = [980, 980, 980, 980, 980, 980, 1580, 180] + [980] * 8
                     crawl_mode = 0
+                    calib_mode = False   # thoat khoi calib mode
                     usb.write("OK SIT\n")
                     print("Sitting down...")
 
@@ -259,28 +279,60 @@ while True:
                     usb.write("OK CRAWL_RIGHT\n")
                     print("Crawling right...")
 
+                # ---- Calibration commands ----
+                elif cmd.startswith("RAW:"):
+                    # RAW:ch:angle - set raw PWM truc tiep, tam dung state machine
+                    parts = cmd[4:].split(':')
+                    ch = int(parts[0])
+                    angle = int(parts[1])
+                    calib_mode = True    # tam dung loop ghi de
+                    pca.duty(ch, angle_to_duty_raw(angle))
+                    usb.write("OK RAW {}:{}\n".format(ch, angle))
+
+                elif cmd.startswith("CALIB:"):
+                    # CALIB:ch:center - cap nhat center angle cua servo
+                    parts = cmd[6:].split(':')
+                    ch = int(parts[0])
+                    center = int(parts[1])
+                    if ch in servo_by_channel:
+                        servo_by_channel[ch].center_angle_deg = center
+                        usb.write("OK CALIB {}:{}\n".format(ch, center))
+                        print("Servo {} center -> {}".format(ch, center))
+                    else:
+                        usb.write("ERROR Invalid channel\n")
+
+                elif cmd == "SAVE_HOME":
+                    usb.write("OK SAVE_HOME\n")
+                    print("Home saved (RAM only, upload new file to persist)")
+
+                elif cmd == "GET_CENTERS":
+                    # Tra ve tat ca center angles hien tai
+                    vals = ",".join("{}:{}".format(ch, servo_by_channel[ch].center_angle_deg)
+                                   for ch in sorted(servo_by_channel))
+                    usb.write("CENTERS {}\n".format(vals))
+
+                elif cmd == "PING":
+                    # Dashboard gui PING sau khi connect de kich hoat lai READY
+                    usb.write("READY\n")
+
                 else:
                     usb.write("ERROR Unknown command\n")
 
             except Exception as e:
                 usb.write("ERROR {}\n".format(str(e)))
 
-    # ---- Update state machine moi loop (QUAN TRONG!) ----
-    # State machine can duoc goi lien tuc de xu ly cac transition mat thoi gian
-    # (vi du: TURNING_SERVOS_ON doi ~2s truoc khi chuyen sang DOWN)
-    if current_rc_channels is not None:
-        state_machine.update(profiler, current_rc_channels, last_loop_us)
-
-    # ---- Update profiler + servos ----
-    profiler.tick()
-    pos_cmds = profiler.get_position_commands()
-
-    for i, c in enumerate(pos_cmds):
-        if c is not None:
-            try:
-                servo_commands[i](c)
-            except:
-                pass
+    # ---- Update state machine + profiler (chi khi KHONG o calib_mode) ----
+    if not calib_mode:
+        if current_rc_channels is not None:
+            state_machine.update(profiler, current_rc_channels, last_loop_us)
+        profiler.tick()
+        pos_cmds = profiler.get_position_commands()
+        for i, c in enumerate(pos_cmds):
+            if c is not None:
+                try:
+                    servo_commands[i](c)
+                except:
+                    pass
 
     # ---- Timing: 50Hz loop ----
     while utime.ticks_diff(utime.ticks_us(), last_loop_us) < loop_period_us:
