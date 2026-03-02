@@ -20,7 +20,6 @@ import time
 import re
 import os
 
-# ─── Servo definitions (sync with esp32_robot_receiver.py) ───────────────────
 SERVO_DEFAULTS = {
     0:  ("FR Shoulder", 120, False),
     1:  ("FR Leg",      100, False),
@@ -37,7 +36,6 @@ SERVO_DEFAULTS = {
 }
 SERVO_CHANNELS = [0, 1, 2, 4, 5, 6, 8, 9, 10, 12, 13, 14]
 
-# Foot channels: must keep centers fixed (IK constraint)
 FOOT_CHANNELS = {2, 6, 10, 14}
 
 ESP32_FILE = os.path.join(os.path.dirname(__file__),
